@@ -1,0 +1,31 @@
+#!/bin/bash
+
+. $HOME/bin/skif-bin/.config/MAILBOX.$USER
+if [ -z "$CC_ADDRESS" ]; then
+	CC=""
+else
+	CC="-c $CC_ADDRESS"
+fi
+
+unset qmon_num msg_killing qmon_str msg_starting qmon
+
+qmon_num=$(ps -aef | grep qmon | grep $USER | grep -v grep | grep -v "vi" | wc -l)
+if [ "$qmon_num" -gt "1" ] ; then
+    # kill -9 `ps -ef | grep "qmon" | grep -v grep | awk {'print $2'}` >/dev/null 2>&1
+    killall -9 qmon >/dev/null 2>&1
+    msg_killing="$SKIF_NAME Too many copies of qmon at $(date "+%F %H:%M:%S"). Killing it..."
+    echo -e "${msg_killing}" | mail -s "${msg_killing}" -r "$FROM_ADDRESS" $TO_ADDRESS $CC
+fi
+
+qmon_str=$(ps -aef | grep qmon | grep $USER | grep -v grep | grep -v "vi" | awk '{print $9}' | head -1)
+sleep 5
+
+if [ "$qmon_str" != "$HOME/bin/qmon" -a "$qmon_num" == "0" ] ; then
+    msg_starting="$SKIF_NAME Qmon is down at $(date "+%F %H:%M:%S"). Starting it..."
+    echo -e "${msg_starting}" | mail -s "${msg_starting}" -r "$FROM_ADDRESS" $TO_ADDRESS $CC
+    nohup qmon > /dev/null 2>&1 &
+fi
+
+
+exit 0
+

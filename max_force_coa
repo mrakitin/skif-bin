@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Output maximum force from all scf files of finished steps of volume optimization in the current directory
+
+file=$(basename $PWD)
+
+if [ "$1" = "-m" ]; then
+    files_list=$(ls -1 ${file}_*.scf)
+else
+    vol_values=$(ls -1 ${file}_coa_*.scf | rev | cut -d. -f2- | cut -d_ -f1  | rev | sort -g)
+    unset files_list
+    for i in ${vol_values}; do
+        files_list="${files_list} ${file}_coa*_${i}.scf"
+    done
+fi
+
+for scf in ${files_list}; do
+    echo -e "\n====================================="
+    echo "$scf"
+    max_force=$(grep ":FGL" $scf | tail -$(grep "ATOM" ${file}.struct | wc -l) | awk '{print $3}; {print $4}; {print $5}' | sed 's/-//g' | sort -g | tail -1)
+    echo $max_force
+done
+

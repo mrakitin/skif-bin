@@ -1,0 +1,89 @@
+#!/bin/bash
+
+init_dir=$PWD
+#source $HOME/bin/skif-bin/.config/$(hostname | cut -d. -f1).nodes
+
+nodelist=""
+taskid=""
+for ((;;)) ; do
+  case $1 in
+  -a) # All nodes
+    shift
+    arg="a"
+    nodelist=$(pbsnodes | grep -e "${nodes_pattern_full}" | sort | uniq)
+    ;;
+  -f) # Free nodes
+    arg="f"
+    shift
+    nodelist=$(pbsnodes | grep "state = free" -B1 | grep node)
+    ;;
+  -l) # List of nodes as an argument
+    arg="l"
+    shift
+    nodelist=$@
+    ;;
+  -m) # Nodes from .machine1 file
+    shift
+    arg="m"
+    if [ -f ".machines" ]; then
+        nodelist=$(cat .machines | grep -e "${nodes_pattern}" | cut -d: -f2 | sed 's/ /\n/g' | sort | uniq)
+    else
+	break
+    fi
+    ;;
+  -r) # Nodes from running tasks
+    shift
+    arg="r"
+    nodelist=$(qstat -a -n -1 | grep "\.$hostname" | grep " R " | awk '{print $NF}' | sed 's/+/\n/g' | cut -d/ -f1 | sort | uniq) 
+    #$(qstat -f | grep exec_host | cut -d= -f2 | cut -d/ -f1 | sed 's/ //g' | sort | uniq)
+    ;;
+  -t) # Nodes from the particular task
+    shift
+    arg="t"
+    taskid=$1
+    #nodelist=$(qstat -f -1 $taskid | grep exec_host | awk '{print $3}' | sed 's/+/\n/g' | cut -d/ -f1 | sort | uniq)
+    nodelist=$(convert_slurm_nodelist.sh $(scontrol show job $taskid | grep " NodeList" | cut -d= -f2))
+    ;;
+  *)
+    break
+    ;;
+  esac
+done
+
+if [ -z "$nodelist" ]; then
+    echo -e "\
+  WARNING!!! The list of nodes is empty. Exiting..."
+    exit 1
+fi
+
+printf "NODE\t%1sUSER\t%2sLOAD\t%2sMEM\t%1sTIME\t%5sNAME\n"
+for node in $nodelist ; do
+    v=$(ssh $node ps -eo user,pcpu,pmem,time,fname | awk '$2>=5.0 {printf "\t%2s %8s %6s %10s %10s\n", $1, $2, $3, $4, $5}')
+    if [ "$arg" != "r" -a "$arg" != "t" -a "$arg" != "m" ]; then
+    	echo -e "\E[34;40m\n*******************************************************************"; tput sgr0 # blue color
+	echo -e "\E[31;40m$node"; tput sgr0          # red color
+	echo -e "\E[36;40m$v"; tput sgr0             # cian color
+    else
+	#path=$(ssh $node lsof +c 30 \| grep $USER \| grep "/calc/" | awk '{print $1","$2","$9}' | grep "x,"| sed 's|/panfs/panasas||g' | sort | uniq | head -1 | cut -d, -f3)
+	path=$(ssh $node lsof +c 30 \| grep "$USER" \| grep "/calc/" \| grep -v "scratch" | awk '{print $9}' | sort | uniq | head -1 | sed 's|/panfs/panasas||g')
+        qstat_id="$(qstat -a -n -1 | grep "\.$hostname" | grep " R " | grep "$(echo $node | cut -d. -f1)" | awk '{print $1}')"
+	qstat_string=$(qstat -a | grep "${qstat_id}") 
+	#if [ ! -z "$path" ]; then
+    	#    qres_string=$(cd $path; qres -f | tail -1; cd $init_dir)
+	#    qrun_string=$(qrun -f | grep "$(echo ${qstat_id} | cut -d. -f1)")
+	#else
+	#    qres_string="  WARNING!!! Calculation path not found"
+	#fi
+
+	echo -e "\E[34;40m\n*******************************************************************"; tput sgr0 # blue color
+	echo -e "\E[31;40m$node"; tput sgr0          # red color
+	echo -e "\E[33;40m$path"; tput sgr0          # yellow color
+	echo -e "\E[32;40m$qstat_string"; tput sgr0  # green color
+        echo -e "\E[34;40m$qrun_string"; tput sgr0   # blue color
+	echo -e "\E[35;40m$qres_string"; tput sgr0   # purple color
+	echo -e "\E[36;40m$v"; tput sgr0             # cian color
+    fi
+done
+
+exit 0
+

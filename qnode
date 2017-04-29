@@ -1,0 +1,7 @@
+#!/bin/bash
+a=`pbsnodes | grep 'state = free' | wc -l`
+let b=$a*2
+let c=$a*8
+echo  Free Nodes = $a
+echo "Free CPUs  = "$b
+echo "Free Cores = "$c 

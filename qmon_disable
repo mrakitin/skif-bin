@@ -1,0 +1,80 @@
+#!/bin/bash
+
+######################### Apply mail variables #########################
+. $HOME/bin/skif-bin/.config/MAILBOX.$USER
+if [ -z "$CC_ADDRESS" ]; then
+	CC=""
+else
+	CC="-c $CC_ADDRESS"
+fi
+
+if [ ! -d $HOME/qrep ] ; then
+    mkdir $HOME/qrep
+fi 
+
+######################### Report processing ############################
+report_function()
+{
+
+date_string=$(date "+%F_%H-%M-%S")
+
+qrunlog=$HOME/qrep/qrun_${date_string}.log
+qdonelog=$HOME/qrep/qdone_${date_string}.log
+
+cat << EOF > $qrunlog
+qrun statistics:
+=====================
+$(qrun)
+
+
+squeue statistics:
+=====================
+$(squeue -la)
+
+
+scontrol statistics:
+=====================
+$(scontrol show job -o)
+
+
+sinfo statistics:
+=====================
+$(sinfo)
+
+EOF
+
+}
+
+######################### Events processing ############################
+#---> Start monitoring:
+report_function
+msg_start="$SKIF_NAME Qmon started at $(date "+%F %H:%M:%S")"
+echo -e "${msg_start}" | mail -s "${msg_start}" -a $qrunlog -r "$FROM_ADDRESS" $TO_ADDRESS $CC
+
+numcalc=$(squeue -la -u $USER -h | wc -l)
+numit=0
+
+#---> Cycle every 300 seconds
+while [ 1 ]; do
+    unset qrunlog msg_torque_down msg_torque_up msg_changed_numbers
+
+    if [ "$numit" -gt "0" ] ; then
+        report_function
+        msg_torque_up="$SKIF_NAME Torque is active at $(date "+%F %H:%M:%S")"
+        echo -e "${msg_torque_up}" | mail -s "${msg_torque_up}" -a $qrunlog -r "$FROM_ADDRESS" $TO_ADDRESS $CC
+        numit=0
+    fi
+    numcalc_new=$(squeue -la -u $USER -h | wc -l)
+    if [ "$numcalc" -ne "$numcalc_new" ] ; then
+	    report_function
+	    msg_changed_numbers="$SKIF_NAME Number of calculations changed ($numcalc to $numcalc_new) at $(date "+%F %H:%M:%S")"
+	    echo "${msg_changed_numbers}" | mail -s "${msg_changed_numbers}" -a $qrunlog -r "$FROM_ADDRESS" $TO_ADDRESS $CC
+    fi
+    numcalc=${numcalc_new}
+    qdone -v  > $qdonelog 2>&1
+    #sleep 600
+done
+
+
+exit 0
+

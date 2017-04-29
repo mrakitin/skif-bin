@@ -1,0 +1,450 @@
+#!/bin/bash
+
+########################## Help part ####################################
+help ()
+{
+cat << EOF
+
+$(basename $0) - WIEN2k calculation directories analyser
+
+Usage:
+------
+    $(basename $0) options
+    
+OPTIONS:
+    -f directory
+    --find-directory directory
+	This option specifies initial directory to start processing.
+
+    -v
+    --verbose
+	Print main steps information during processing of the directories.
+
+    -h
+    --help
+	Output help information.
+
+Author  : Maxim Rakitin (rms85@physics.susu.ac.ru)
+Version : 3.0
+Date    : 2010-11-12 (Fri)
+
+EOF
+
+exit 1
+}
+
+########################## Argument part ################################
+while [ "$#" -gt "0" ]; do
+    arg=$1
+    shift
+    case $arg in
+	-f | --find-directory)
+	    if [ -d "$1" ]; then
+    		find_dir=$1
+	    fi
+	    shift
+	;;	    
+	-v | --verbose)
+	    verbose="yes"
+	;;
+	-h | --help)
+	    help
+	;;
+	* )
+	    echo -e "
+  WARNING!!! Incorrect options. Use '$(basename $0) -h' for help.
+  Exiting...\n"
+	    exit 2
+    esac
+done
+
+########################## Import mail variables ########################
+. $HOME/bin/skif-bin/.config/MAILBOX.$USER
+if [ -z "$CC_ADDRESS" ]; then
+    CC=""
+else
+    CC="-c $CC_ADDRESS"
+fi
+
+if [ ! -d $HOME/qrep ] ; then
+    mkdir $HOME/qrep
+fi
+
+########################## Variables part ###############################
+step=0
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: set all files paths..."
+fi
+
+report_dir=$HOME/qrep
+date_name=$(date "+%F_%H-%M-%S")
+
+done_log=$report_dir/done_${date_name}.log
+done_html=$report_dir/done_${date_name}.html
+done_zip=$report_dir/done_${date_name}.zip
+
+error_log=$report_dir/error_${date_name}.log
+error_html=$report_dir/error_${date_name}.html
+error_zip=$report_dir/error_${date_name}.zip
+
+interrupt_log=$report_dir/interrupt_${date_name}.log
+interrupt_html=$report_dir/interrupt_${date_name}.html
+interrupt_zip=$report_dir/interrupt_${date_name}.zip
+
+cd $HOME/calc
+if [ -z "${find_dir}" ]; then
+    find_dir=$(echo $PWD)
+fi
+
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: find all embedded directories in ${find_dir}..."
+fi
+
+unset done_dir_list error_dir_list interrupt_dir_list
+
+# Check directory with init_lapw started in it
+exception_list=$(lsof | grep $USER | grep init | grep calc | sort | uniq | awk '{print $9}')
+
+# Find all directories with *.struct files
+dir_list=$(find -P ${find_dir} -mount -name *.struct | rev | cut -d/ -f 2- | rev | sort | uniq | grep -v .archive | sed 's|/panfs/panasas||g')
+num=$(echo "${dir_list}" | wc -l)
+
+########################## Directoories processing ######################
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: found calculation directories list:\n${dir_list}"
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: start cycle over found directories..."
+fi
+
+for ((i=1; i<=$num; i++)); do
+    unset calc_dir struct_name isrun isstop iserror initdir_check num_files
+    cd ${find_dir}
+    calc_dir=$(echo "${dir_list}" | head -$i | tail -1)
+    struct_name=$(basename ${calc_dir})
+
+    # Ignore a dir:
+    # - without case.struct file     or
+    # - without case.dayfile         or
+    # - with .finished* files        or
+    # - with init_lapw started in it or
+    # - for running calculation.
+
+    isrun=$(qstat -f | grep -e "Job_Name = ${struct_name}\.mpi$")
+    initdir_check=$(echo "${exception_list}" | grep "${calc_dir}")
+
+    if [ ! -f "${calc_dir}/${struct_name}.struct"  -o \
+	 ! -f "${calc_dir}/${struct_name}.dayfile" -o \
+	   -f "${calc_dir}"/.finished*             -o \
+         ! -z "${initdir_check}"                   -o \
+         ! -z "$isrun"					 ]; then
+        continue
+    fi
+
+    cd ${calc_dir}
+
+    num_files=$(ls -1A | wc -l)
+    if [ "${num_files}" -le 10 ] ; then
+	continue
+    fi
+
+    isstop=$( grep    "stop"       ${struct_name}.dayfile | grep -v error)
+    iserror=$(grep -i "stop error" ${struct_name}.dayfile)
+
+    if [ ! -z "$isstop" ] ; then
+        # Successfully completed job (with 'stop' at the end of case.dayfile)
+        if [ -f "${struct_name}.scf" ] ; then
+	    # Create file .finished for exclude this path from the next iterations and email me the results of calc
+	    touch ${calc_dir}/.finished
+	    if [ ! -z "${done_dir_list}" ]; then
+		done_dir_list="\
+${done_dir_list}
+${calc_dir}"
+	    else
+		done_dir_list="\
+${calc_dir}"
+	    fi
+	fi
+    else
+        if [ ! -z "$iserror" ]; then
+    	    # Error in ${struct_name}.dayfile. Need to email me and create file .finished_error
+    	    touch $calc_dir/.finished_error
+	    if [ ! -z "${error_dir_list}" ]; then
+		error_dir_list="\
+${error_dir_list}
+${calc_dir}"
+	    else
+		error_dir_list="\
+${calc_dir}"
+	    fi
+	else
+	    # Interrupt job
+    	    touch $calc_dir/.finished_intrpt
+	    if [ ! -z "${interrupt_dir_list}" ]; then
+		interrupt_dir_list="\
+${interrupt_dir_list}
+${calc_dir}"
+	    else
+		interrupt_dir_list="\
+${calc_dir}"
+	    fi
+	fi
+    fi
+done
+
+
+unset done_date error_date interrupt_date \
+      done_string error_string interrupt_string \
+      done_attach error_attach interrupt_attach
+
+########################## Generate report for DONE case ################
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: DONE directories list:\n${done_dir_list}"
+fi
+
+if [ ! -z "${done_dir_list}" ]; then
+    unset done_dir_size qres_done
+    done_dir_size=$(echo "${done_dir_list}" | grep . | wc -l)
+
+    for ((i=1; i<=${done_dir_size}; i++)); do
+	unset tail_value qres_string
+	cd $(echo "${done_dir_list}" | head -$i | tail -1)
+	if [ "$i" -eq "1" ]; then
+	    tail_value="3"
+	else
+	    tail_value="1"
+	fi
+
+	qres_string="$(qres -f -n | tail -${tail_value})"
+	if [ ! -z "${qres_done}" ]; then
+	    qres_done="\
+${qres_done}
+${qres_string}"
+	else
+	    qres_done="\
+${qres_string}"
+	fi
+
+	cd ${find_dir}
+    done
+
+    if [ "$verbose" = "yes" ]; then
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: generate text log file..."
+    fi
+cat << EOF >> ${done_log}
+The following calculations have been finished successfully:
+
+${done_dir_list}
+
+${qres_done}
+
+EOF
+    done_date=$(date "+%F %H:%M:%S")
+    done_string="${SKIF_NAME}. Done (${done_dir_size}) at ${done_date}"
+    done_body="\
+${done_string}
+
+${done_dir_list}
+"
+    if [ "$verbose" != "yes" ]; then
+	html_gen -o ${done_html} -n "${done_string}" -s d -p $(echo ${done_dir_list}) > /dev/null
+	zip -q -j ${done_zip} ${done_html}
+    else
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: generate html report using html_gen script:"
+	html_gen -o ${done_html} -n "${done_string}" -s d -p $(echo ${done_dir_list})
+
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: pack received html report into zip-archive:"
+	zip -j ${done_zip} ${done_html}
+    fi
+    
+    # Mail part
+    if [ -f "${done_log}" -a ! -f "${done_zip}" ] ; then
+	done_attach="-a ${done_log}"
+    elif [ ! -f "${done_log}" -a -f "${done_zip}" ] ; then
+	done_attach="-a ${done_zip}"
+    elif [ -f "${done_log}" -a -f "${done_zip}" ] ; then
+	done_attach="-a ${done_log} -a ${done_zip}"
+    fi
+    echo -e "${done_body}" | mail -s "${done_string}" ${done_attach} -r $FROM_ADDRESS $TO_ADDRESS $CC
+
+    if [ "$verbose" = "yes" ]; then
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: email report about done events has been sent."
+    fi
+fi
+
+
+########################## Generate report for ERROR case ################
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: ERROR directories list:\n${error_dir_list}"
+fi
+
+if [ ! -z "${error_dir_list}" ]; then
+    unset error_dir_size qres_error
+    error_dir_size=$(echo "${error_dir_list}" | grep . | wc -l)
+
+    for ((i=1; i<=${error_dir_size}; i++)); do
+	unset tail_value qres_string
+	cd $(echo "${error_dir_list}" | head -$i | tail -1)
+	if [ "$i" -eq "1" ]; then
+	    tail_value="3"
+	else
+	    tail_value="1"
+	fi
+
+	qres_string="$(qres -f -n | tail -${tail_value})"
+	if [ ! -z "${qres_error}" ]; then
+	    qres_error="\
+${qres_error}
+${qres_string}"
+	else
+	    qres_error="\
+${qres_string}"
+	fi
+
+	cd ${find_dir}
+    done
+
+    if [ "$verbose" = "yes" ]; then
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: generate text log file..."
+    fi
+cat << EOF >> ${error_log}
+The following calculations have been finished with error:
+
+${error_dir_list}
+
+${qres_error}
+
+EOF
+    error_date=$(date "+%F %H:%M:%S")
+    error_string="${SKIF_NAME}. Error (${error_dir_size}) at ${error_date}"
+    error_body="\
+${error_string}
+
+${error_dir_list}
+"
+    if [ "$verbose" != "yes" ]; then
+	html_gen -o ${error_html} -n "${error_string}" -s e -p $(echo ${error_dir_list}) > /dev/null
+	zip -q -j ${error_zip} ${error_html}
+    else
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: generate html report using html_gen script:"
+	html_gen -o ${error_html} -n "${error_string}" -s e -p $(echo ${error_dir_list})
+
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: pack received html report into zip-archive:"
+	zip -j ${error_zip} ${error_html}
+    fi
+    
+    # Mail part
+    if [ -f "${error_log}" -a ! -f "${error_zip}" ] ; then
+	error_attach="-a ${error_log}"
+    elif [ ! -f "${error_log}" -a -f "${error_zip}" ] ; then
+	error_attach="-a ${error_zip}"
+    elif [ -f "${error_log}" -a -f "${error_zip}" ] ; then
+	error_attach="-a ${error_log} -a ${error_zip}"
+    fi
+    echo -e "${error_body}" | mail -s "${error_string}" ${error_attach} -r $FROM_ADDRESS $TO_ADDRESS $CC
+
+    if [ "$verbose" = "yes" ]; then
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: email report about error events has been sent."
+    fi
+fi
+
+
+########################## Generate report for INTERRUPT case ################
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: INTERRUPT directories list:\n${interrupt_dir_list}"
+fi
+
+if [ ! -z "${interrupt_dir_list}" ]; then
+    unset interrupt_dir_size qres_interrupt
+    interrupt_dir_size=$(echo "${interrupt_dir_list}" | grep . | wc -l)
+
+    for ((i=1; i<=${interrupt_dir_size}; i++)); do
+	unset tail_value qres_string
+	cd $(echo "${interrupt_dir_list}" | head -$i | tail -1)
+	if [ "$i" -eq "1" ]; then
+	    tail_value="3"
+	else
+	    tail_value="1"
+	fi
+
+	qres_string="$(qres -f -n | tail -${tail_value})"
+	if [ ! -z "${qres_interrupt}" ]; then
+	    qres_interrupt="\
+${qres_interrupt}
+${qres_string}"
+	else
+	    qres_interrupt="\
+${qres_string}"
+	fi
+
+	cd ${find_dir}
+    done
+
+    if [ "$verbose" = "yes" ]; then
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: generate text log file..."
+    fi
+cat << EOF >> ${interrupt_log}
+The following calculations have been interrupted:
+
+${interrupt_dir_list}
+
+${qres_interrupt}
+
+EOF
+    interrupt_date=$(date "+%F %H:%M:%S")
+    interrupt_string="${SKIF_NAME}. Interrupt (${interrupt_dir_size}) at ${interrupt_date}"
+    interrupt_body="\
+${interrupt_string}
+
+${interrupt_dir_list}
+"
+    if [ "$verbose" != "yes" ]; then
+	html_gen -o ${interrupt_html} -n "${interrupt_string}" -s i -p $(echo ${interrupt_dir_list}) > /dev/null
+	zip -q -j ${interrupt_zip} ${interrupt_html}
+    else
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: generate html report using html_gen script:"
+	html_gen -o ${interrupt_html} -n "${interrupt_string}" -s i -p $(echo ${interrupt_dir_list})
+
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: pack received html report into zip-archive:"
+	zip -j ${interrupt_zip} ${interrupt_html}
+    fi
+    
+    # Mail part
+    if [ -f "${interrupt_log}" -a ! -f "${interrupt_zip}" ] ; then
+	interrupt_attach="-a ${interrupt_log}"
+    elif [ ! -f "${interrupt_log}" -a -f "${interrupt_zip}" ] ; then
+	interrupt_attach="-a ${interrupt_zip}"
+    elif [ -f "${interrupt_log}" -a -f "${interrupt_zip}" ] ; then
+	interrupt_attach="-a ${interrupt_log} -a ${interrupt_zip}"
+    fi
+    echo -e "${interrupt_body}" | mail -s "${interrupt_string}" ${interrupt_attach} -r $FROM_ADDRESS $TO_ADDRESS $CC
+
+    if [ "$verbose" = "yes" ]; then
+        step=$(($step + 1))
+	echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: email report about interrupt events has been sent."
+    fi
+fi
+
+if [ "$verbose" = "yes" ]; then
+    step=$(($step + 1))
+    echo -e "\n$(date "+%F %H:%M:%S") Step #${step}: processing has been finished"
+fi
+
+
+exit 0

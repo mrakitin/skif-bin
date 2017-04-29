@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Description: The script is to get statistics on jobs in the current directory
+# Author: Maxim Rakitin
+# Email : rms85@physics.susu.ac.ru
+# Date  : 2010-09-20 (Mon)
+
+if [ -z "$1" ]; then
+    echo "  WARNING!!! Please point private_nodes file"
+    exit 1
+fi
+
+if [ ! -f .machines ]; then
+    echo "  WARNING!!! There is no .machines file"
+    exit 2
+fi
+
+privnodes_file="$1"
+if [ -f "$privnodes_file" ]; then
+    qstat_list=$(qstat -a -n)
+    nodes_list=$(cat $privnodes_file | grep "node")
+    #echo -e "=== nodes_list:\n$nodes_list"
+    lines_num=$(echo "$nodes_list" | wc -l)
+    #echo -e "=== lines_num:\n$lines_num"
+    for ((i=1; i<=$lines_num; i++)); do 
+        node=$(echo "$nodes_list" | head -$i | tail -1)
+        current_task=$(echo "$qstat_list" | grep $node -B1 | head -1)
+        if [ ! -z "$tasks_list" ]; then
+            tasks_list="$tasks_list
+$current_task"
+        else
+            tasks_list="$current_task"
+        fi
+    done
+    tasks_sorted=$(echo "$tasks_list" | sort | uniq)
+    echo -e "\n******** qstat statistics ********"
+    echo "$tasks_sorted"
+
+    echo -e "\n******** qfree statistics ********"
+    qfree $privnodes_file
+fi
+
+exit 0

@@ -1,0 +1,89 @@
+#!/bin/bash
+
+################################ Directories and files #################################
+init_dir=$PWD
+calc_dir=$(basename $PWD)
+scf_file="$calc_dir.scf"
+struct_file="$calc_dir.struct"
+rsm_file="$calc_dir.rsm"
+dosdir="dos_dir_0.01"
+report_dir="$calc_dir.report.$(date "+%F_%H-%M")"
+charges_up_file="$calc_dir"_"charges_up.txt"
+charges_dn_file="$calc_dir"_"charges_dn.txt"
+moments_file="$calc_dir"_"moments.txt"
+energy_file="$calc_dir"_"energy.txt"
+
+################################ Functions #############################################
+help_function ()
+{
+  cat << EOF
+Program: $(basename $0)
+Author : Maxim Rakitin
+Email  : rms85@physics.susu.ac.ru
+Date   : 2010-10-18 (Mon)
+Version: 1.0
+
+The program is to prepare necessary files for the report: struct- and rsm- files, charges, moments, DOS.
+
+EOF
+  exit 1
+}
+
+files_exist ()
+{
+  local check_file=$1
+  if [ ! -f "$check_file" ]; then
+    echo "  WARNING!!! There is no $check_file file in the directory $PWD"
+    exit 2
+  fi
+}
+################################ Check part ############################################
+# Check input values
+if [ ! -z "$1" ]; then
+    help_function
+fi
+
+files_exist $scf_file
+files_exist $struct_file
+
+if [ -d "$report_dir" ]; then
+    rm -rfv $report_dir
+fi
+mkdir $report_dir
+
+################################ Report part ###########################################
+# Copying struct- and rsm- files
+echo -e "\nCopying struct- and rsm- files..."
+cp -v $struct_file $report_dir/$struct_file.txt
+struct2rsm $struct_file
+cp -v $rsm_file $report_dir/$rsm_file
+
+# Collect energy information
+echo -e "\nCollect energy information..."
+qlabel :ENE   >  $report_dir/$energy_file
+
+# Collect charges and magnetic moments information
+echo -e "\nCollect charges and magnetic moments information..."
+qlabel :CUP   >  $report_dir/$charges_up_file
+qlabel :CDN   >  $report_dir/$charges_dn_file
+qlabel :MMTOT >  $report_dir/$moments_file
+qlabel :MMI   >> $report_dir/$moments_file
+
+# Plotting DOS with dos_plot script
+if [ -d "$dosdir" ]; then
+    echo -e "\nPlotting DOS with dos_plot script..."
+    dos_plot all
+    cp -v $dosdir/*.png $report_dir
+    cp -rv $dosdir/atom* $report_dir
+fi
+
+# Converting files to DOS format
+echo -e "\nConverting files to DOS format..."
+unix2dos $report_dir/*.txt $report_dir/*.rsm
+
+# Pack all report files into zip-archive
+echo -e "\nPack all report files into zip-archive..."
+zip -r $report_dir.zip $report_dir/*
+
+
+exit 0

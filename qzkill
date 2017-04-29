@@ -1,0 +1,27 @@
+#!/bin/bash
+
+tasks_list=`qstat -f | grep exec_host | cut -d= -f2 | cut -d/ -f1 | sed 's/ //g'`
+
+cd $HOME/calc
+find_list=`find ./ -name .machines_current -exec cat {} \; | sort | uniq`
+find_list_size=`echo "$find_list" | wc -l`
+
+#echo "find_list = $find_list"
+#echo "find_list_size = $find_list_size"
+
+for((i=1; i<=$find_list_size; i++)); do
+    current_node=`echo "$find_list" | head -$i | tail -1`
+    wont_kill=`echo "$tasks_list" | grep $current_node`
+#    echo "wont_kill = $wont_kill"
+    if [ -z "$wont_kill" ]; then
+    	echo "--- Node: $current_node ---"
+	ssh $current_node killall -9 mpirun_rsh;
+    	ssh $current_node killall -9 lapw1_mpi_run_bin;
+    	ssh $current_node killall -9 lapw1c_mpi_run_bin;
+    	ssh $current_node killall -9 lapw2_mpi_run_bin;
+    	ssh $current_node killall -9 lapw2c_mpi_run_bin;
+    fi
+    #exit 1
+done
+
+exit 0

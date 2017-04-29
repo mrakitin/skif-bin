@@ -1,0 +1,32 @@
+#!/bin/bash
+
+. $HOME/bin/skif-bin/.config/MAILBOX.$USER
+if [ -z "$CC_ADDRESS" ]; then
+    CC=""
+else
+    CC="-c $CC_ADDRESS"
+fi
+
+date_string=$(date "+%F %H:%M:%S")
+date_stamp=$(date "+%F_%H-%M-%S")
+idir=$HOME/calc
+rep_dir=$HOME/qrep
+logfile=${rep_dir}/qday_${date_stamp}.log
+zip_file=${rep_dir}/structs_${date_stamp}.zip
+zip_log=${rep_dir}/structs_${date_stamp}.log
+zip_err=${rep_dir}/structs_${date_stamp}.err
+
+
+cd $idir
+qres -b > $logfile
+
+sleep 1
+
+all_structs ${date_stamp}
+
+sleep 5
+
+echo -e "$SKIF_NAME Daily result at ${date_string}" \
+| mail -s "$SKIF_NAME Daily result at ${date_string}" -a $logfile -a ${zip_file} -a ${zip_log} -a ${zip_err} -r "$FROM_ADDRESS" $TO_ADDRESS $CC
+
+exit 0

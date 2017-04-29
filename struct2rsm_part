@@ -1,0 +1,387 @@
+#!/bin/bash
+
+# This script is to convert WIEN2k *.struct file to *.rsm file
+#
+# Author : Maxim Rakitin
+# Email  : rms85@physics.susu.ac.ru
+# Date   : 2010-03-25
+# Version: 1.1 (changed on 2010-10-18 (Mon))
+
+if [ -z "$1" ]; then
+    echo "\
+    Input *.struct file isn't specified
+    Usage : `basename $0` struct_file"
+    exit 1
+fi
+
+if [ ! -f "$1" ]; then
+    echo "\
+    Specified *.struct file doesn't exist"
+    exit 2
+fi
+
+#---> Variables and parameters
+struct_file=$1
+common_name=`echo ${struct_file} | rev | cut -d. -f2- | rev`
+rsm_file=${common_name}.rsm
+alat_au=$(head -4 ${struct_file} | tail -1 | awk '{print $1}')
+alat_au=$(echo "scale=8; $alat_au * 3" | bc)
+au_2_ang="0.529177"
+atoms_num=`grep "ATOM" ${struct_file} | grep -v "ATOMS" | wc -l | sed 's/ //g'`
+min1_distance="1"
+min2_distance="1"
+
+#---> Find different sort of atoms
+diff_atoms=$(grep "Z:" ${struct_file} | sort | uniq)
+diff_atoms_num=$(echo "${diff_atoms}" | wc -l)
+
+
+hydrogen_string=`grep "ATOM" ${struct_file} -A2 | grep "^H " -B2 | grep "ATOM" | grep -v "ATOMS"`
+if [ ! -z "${hydrogen_string}" ]; then
+    hydrogen_num=`grep "^H " ${struct_file} -B2 | grep "ATOM" | grep -v "ATOMS" | cut -d: -f1 | cut -d- -f2`
+
+    #---> Hydrogen atom processing
+    # Octa pore ---  ATOM  55: X=0.50000000 Y=0.50000000 Z=0.33333333
+    atom_Hox_init="0.50000000"
+    atom_Hoy_init="0.50000000"
+    atom_Hoz_init="0.33333333"
+    # Tetra pore --- ATOM  55: X=0.41666667 Y=0.50000000 Z=0.33333333
+    atom_Htx_init="0.41666667"
+    atom_Hty_init="0.50000000"
+    atom_Htz_init="0.33333333"
+
+    atom_Hx=`echo ${hydrogen_string} | cut -d: -f2 | awk '{print $1}' | cut -d= -f2 | sed 's/ //g' | cut -c 1-10`
+    atom_Hy=`echo ${hydrogen_string} | cut -d: -f2 | awk '{print $2}' | cut -d= -f2 | sed 's/ //g' | cut -c 1-10`
+    atom_Hz=`echo ${hydrogen_string} | cut -d: -f2 | awk '{print $3}' | cut -d= -f2 | sed 's/ //g' | cut -c 1-10`
+fi
+
+#---> Impurity processing
+impurity=`grep "Z:" ${struct_file} | sort | uniq | grep -v "Fe " | grep -v "H " | awk '{print $1}'`
+impurity_num=`grep "^$impurity" ${struct_file} -B2 | grep "ATOM" | grep -v "ATOMS" | cut -d: -f1 | cut -d- -f2`
+if [ "$(echo $imputity | wc -c)" -eq 3 ]; then
+    impurity2=$impurity
+else
+    impurity2="$impurity "
+fi
+
+#---> Header in rsm-file
+echo "REMARK  atoms as in $common_name.pdb
+REMARK< i5><  > X     <  >    <x f8.3><y f8.3><z f8.3><f6.2><f6.3>" >$rsm_file
+
+#---> Process coordinates of atom
+for((i=1; i<=${atoms_num}; i++)); do
+    atom_type="Fe"
+    # current atom parsing
+    current_string=`grep "ATOM" ${struct_file} | grep -v "ATOMS" | head -$i | tail -1 | cut -d: -f2 | sed 's/^ *//g'`
+
+    atom_x=`echo ${current_string} | awk '{print $1}' | cut -d= -f2 | sed 's/ //g' | cut -c 1-10`
+    atom_y=`echo ${current_string} | awk '{print $2}' | cut -d= -f2 | sed 's/ //g' | cut -c 1-10`
+    atom_z=`echo ${current_string} | awk '{print $3}' | cut -d= -f2 | sed 's/ //g' | cut -c 1-10`
+  
+    # Shift x position
+    test_limits=`echo "${atom_x}>=0.98" | bc`
+    if [ "${test_limits}" = 1 ] ; then
+        atom_x=`echo "scale=10; (${atom_x})-1" | bc | cut -c -10`
+    fi
+    if [ "${atom_x}" = "0" ] ; then
+	atom_x=".00000000"
+    fi
+  
+    # Shift y position
+    test_limits=`echo "${atom_y}>=0.98" | bc`
+    if [ "${test_limits}" = 1 ] ; then
+        atom_y=`echo "scale=10; (${atom_y})-1" | bc | cut -c -10`
+    fi
+    if [ "${atom_y}" = "0" ] ; then
+        atom_y=".00000000"
+    fi
+  
+    # Shift z position
+    test_limits=`echo "${atom_z}>=0.98" | bc`
+    if [ "${test_limits}" = 1 ] ; then
+        atom_z=`echo "scale=10; (${atom_z})-1" | bc | cut -c -10`
+    fi
+    if [ "${atom_z}" = "0" ] ; then
+        atom_z=".00000000"
+    fi
+
+# ================================ RSM format ================================
+    ang_x=`echo "scale=8; $atom_x*$alat_au*$au_2_ang+0.5" | bc`
+    ang_y=`echo "scale=8; $atom_y*$alat_au*$au_2_ang+0.5" | bc`
+    ang_z=`echo "scale=8; $atom_z*$alat_au*$au_2_ang+0.5" | bc`
+
+    #ang_x=$(printf "%s" $(printf "%8.3f" $ang_x))
+    #ang_y=$(printf "%s" $(printf "%8.3f" $ang_y))
+    #ang_z=$(printf "%s" $(printf "%8.3f" $ang_z))
+
+    ang_x=$(printf "%8.3f" $ang_x)
+    ang_y=$(printf "%8.3f" $ang_y)
+    ang_z=$(printf "%8.3f" $ang_z)
+
+
+    if [ "$i" -lt 10 ] ; then
+        i_temp="0$i"
+    else
+        i_temp="$i"
+    fi
+
+    if [ "$i" = "$impurity_num" ] ; then
+	atom_type="$impurity2"
+    elif [ "$i" = "$hydrogen_num" ] ; then
+	atom_type="H "
+    fi
+
+    if [ "$i" = "14" -o "$i" = "17" -o "$i" = "32" -o "$i" = "41" -o \
+         "$i" = "15" -o "$i" = "18" -o "$i" = "31" -o "$i" = "40" -o \
+         "$i" = "55" ]; then
+        echo "ATOM    $i_temp  $atom_type  $atom_type     1    ${ang_x}${ang_y}${ang_z}  0.000  0.001" >>$rsm_file
+    fi
+
+    # Calculation the closest atoms
+#    if [ ! -z "$hydrogen_string" ]; then
+#	distance[$i]=`echo "scale=8; sqrt(($atom_x-$atom_Hx)^2+($atom_y-$atom_Hy)^2+($atom_z-$atom_Hz)^2)" | bc | cut -c -3`
+#	#echo $i --- ${distance[$i]}
+#    fi
+done
+
+# In case of minimized structures this algorithm doesn't work because the atoms
+# +of within one sphere can shift on different values, so atoms numbers are used here.
+# =========== Find the 1st sphere =============
+#i=0
+#for j in ${distance[@]}
+#do
+#    let i=$i+1
+#    min1_dist_check=`echo "${distance[$i]}<$min1_distance" | bc`
+#    equal1_dist_check=`echo "${distance[$i]}==$min1_distance" | bc`
+#
+#    if [ "$min1_dist_check" = "1" -a "${distance[$i]}" != "0" ]; then
+#	min1_distance=${distance[i]}
+#	first_sphere=()
+#       first_sphere=( "${first_sphere[@]}" "$i" )
+#	echo "min_distance=${distance[i]}"
+#    fi
+#    if [ "$equal1_dist_check" = "1" ]; then
+#        first_sphere=( "${first_sphere[@]}" "$i" )
+#    fi
+#done
+
+# =========== Find the 2nd sphere ============
+#i=0
+#for j in ${distance[@]}
+#do
+#    let i=$i+1
+#    if [ "$j" != "$min1_distance" ]; then
+#	min2_dist_check=`echo "${distance[$i]}<$min2_distance" | bc`
+#	equal2_dist_check=`echo "${distance[$i]}==$min2_distance" | bc`
+#
+#        if [ "$min2_dist_check" = "1" -a "${distance[$i]}" != "0" ]; then
+#	    min2_distance=${distance[i]}
+#	    second_sphere=()
+#    	    second_sphere=( "${second_sphere[@]}" "$i" )
+#	fi
+#	if [ "$equal2_dist_check" = "1" ]; then
+#    	    second_sphere=( "${second_sphere[@]}" "$i" )
+#	fi
+#    fi
+#done
+
+# First sphere is : 14 17 32 41
+# Second sphere is: 15 18 31 40
+first_sphere=( "14" "17" "32" "41" )
+second_sphere=( "15" "18" "31" "40" )
+
+echo "	First sphere is : "${first_sphere[@]}
+echo "	Second sphere is: "${second_sphere[@]}
+
+
+# ============ Atoms part ===============
+# Common_atoms colour : colour atoms [100,100,100] - grey
+# First sphere colour : colour atoms [153,204,0]   - green
+# Second sphere colour: colour atoms [255,128,0]   - orange
+# Impurity atom colour: colour atoms [255,0,0]     - red
+# Hydrogen atom colour: colour atoms [255,255,255] - white
+
+atoms_rsm=""
+for ((i=1; i<=$atoms_num; i++)); do
+    atoms_rsm_temp="\
+select atomno=$i
+colour atoms [100,100,100]"
+    # First sphere processing
+    for j in ${first_sphere[@]}; do
+	if [ "$j" = "$i" ]; then
+	    atoms_rsm_temp="\
+select atomno=$i
+colour atoms [153,204,0]"
+	fi
+    done
+    # Second sphere processing
+    for k in ${second_sphere[@]}; do
+	if [ "$k" = "$i" ]; then
+	    atoms_rsm_temp="\
+select atomno=$i
+colour atoms [255,128,0]"
+	fi
+    done
+    #---> Impurity color
+    if [ "$i" = "$impurity_num" ]; then
+        atoms_rsm_temp="\
+select atomno=$i
+colour atoms [255,0,0]"
+    fi
+    #---> Hydrogen color
+    if [ "$i" = "$hydrogen_num" ]; then
+	atoms_rsm_temp="\
+select atomno=$i
+colour atoms [255,255,255]"
+    fi
+
+    atoms_rsm="$atoms_rsm
+$atoms_rsm_temp"
+done
+
+# ============ Labels part ===========
+first_second=( "${first_sphere[@]}" "${second_sphere[@]}" "$impurity_num" "$hydrogen_num" )
+for i in ${first_second[@]}; do
+    labels_rsm_temp="\
+select atomno=$i
+label \"%e%i\""
+    labels_rsm="$labels_rsm
+$labels_rsm_temp"
+done
+
+
+# ============ Monitors part ===========
+# First sphere contour 
+for ((i=0; i<${#first_sphere[@]}; i++)); do
+    for ((j=$i; j<${#first_sphere[@]}; j++)); do
+	if [ "$i" != "$j" ]; then
+	    monitors_rsm_temp="monitor ${first_sphere[$i]} ${first_sphere[$j]}"
+	    monitors_rsm="$monitors_rsm
+$monitors_rsm_temp"
+	fi
+    done
+done
+
+# Second sphere contour 
+for ((i=0; i<${#second_sphere[@]}; i++)); do
+    for ((j=$i; j<${#second_sphere[@]}; j++)); do
+	if [ "$i" != "$j" ]; then
+	    monitors_rsm_temp="monitor ${second_sphere[$i]} ${second_sphere[$j]}"
+	    monitors_rsm="$monitors_rsm
+$monitors_rsm_temp"
+	fi
+    done
+done
+
+# =========== End of output in rsm-file ===========
+echo "
+#!rasmol -rsm file
+# Creator: RasTop Version 2.1.0
+zap
+set connect on
+load pdb inline
+set title $calc_dir
+
+# Colour details
+background [0,0,0]
+set backfade off
+set headlight [-79,17,-58]
+set ambient 40
+set specular on
+set specpower 30
+set shadepower 50
+set depthcue off
+set shadow off
+stereo off
+
+# Transformation
+reset
+rotate molecule
+set picking ident
+set worlddepth 5108
+# zoom 182.43
+scale 11.20
+position x 0.000 y 0.000 z 0.000
+
+# Rendering
+colour axes [255,255,255]
+set axes off
+set boundingbox off
+set unitcell off
+set bondmode and
+dots off
+
+# Avoid Colour Problems!
+select all
+colour bonds none
+colour backbone none
+colour hbonds none
+colour ssbonds none
+colour ribbons none
+colour white
+
+# Atoms\
+$atoms_rsm
+select all
+spacefill 100
+set shadow off
+
+# Bonds
+wireframe off
+
+# Ribbons
+ribbons off
+
+# Backbone
+backbone off
+
+# Labels
+labels off
+colour labels none
+set fontsize 0
+
+# Monitors
+set monitors on\
+$monitors_rsm
+
+# ssbonds
+select all
+ssbonds off
+
+# hbonds
+hbonds off
+
+# Dots
+set solvent false
+set radius 0
+set dots 1
+dots off
+
+# AtomSets
+# no sets
+
+select all
+
+# World Transformation
+rotate world
+centre origin
+set axes world off
+rotate world x 99.42
+rotate world y 1.79
+rotate world z -1.25
+# translate world x 0.11
+# translate world y -0.11
+position world x 0.012 y -0.012
+reset slab
+slab off
+reset depth
+depth off
+centre origin
+molecule 1
+
+exit
+" >> $rsm_file
+
+#sleep 2
+
+exit 0

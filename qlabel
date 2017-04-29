@@ -1,0 +1,83 @@
+#!/bin/bash
+
+################################ Functions #############################################
+labels_list=":MMTOT :MMI :CUP :CDN :ENE"
+
+help_function ()
+{
+  cat << EOF
+Program: $(basename $0)
+Author : Maxim Rakitin
+Email  : rms85@physics.susu.ac.ru
+Date   : 2010-10-18 (Mon)
+Version: 1.0
+
+The program is to output :LABELs information to corresponding files
+
+The input values can be:
+    $labels_list
+
+EOF
+  exit 1
+}
+
+compare_list ()
+{
+  local input_value="$1"
+  local possible_values=$2
+  local num="0"
+  local i
+  for i in $possible_values; do
+      if [ "$input_value" = "$i" ]; then
+	  let "num += 1"
+      fi
+  done
+
+  if [ "$num" -eq "0" ]; then
+      help_function
+  fi
+}
+
+################################ Check part ############################################
+# Check input values
+label=$1
+compare_list $label "$labels_list"
+
+scf_file="$(basename $PWD).scf"
+if [ ! -f "$scf_file" ]; then
+    echo "  WARNING!!! There is no scf file ($scf_file) in the directory $PWD"
+    exit 2
+fi
+
+################################ Collect part ##########################################
+atoms_list=$(grep "Z:" $(basename $PWD).struct | awk '{print $1}')
+atoms_num=$(echo "$atoms_list" | wc -l)
+
+if [ "$label" = ":MMTOT" -o "$label" = ":ENE" ]; then
+    cut_num="1"
+    block=$(grep "$label" $scf_file | tail -$cut_num)
+    tot_name=$(echo "$block" | awk -F : '{print $3}' | awk -F = '{print $1}' | sed 's/*//g; s/^ *//g; s/ *$//g')
+    tot_value=$(echo "$block" | awk -F = '{print $2}' | sed 's/^ *//g; s/ *$//g')
+    echo "$tot_name = $tot_value"
+else
+    let cut_num="$atoms_num + 1"
+    block=$(grep "$label" $scf_file | tail -$cut_num)
+
+    interstitial=$(echo "$block" | head -1)
+    int_name=$(echo "$interstitial" | awk -F : '{print $3}' | awk -F = '{print $1}' | sed 's/^ *//g; s/ *$//g')
+    int_value=$(echo "$interstitial" | awk -F = '{print $2}' | sed 's/^ *//g; s/ *$//g')
+    echo "$int_name = $int_value"
+
+    spheres=$(echo "$block" | tail -$atoms_num)
+    sph_name=$(echo "$spheres" | awk '{print $1}')
+    sph_value=$(echo "$spheres" | awk -F = '{print $2}' | awk '{print $1}')
+    for ((i=1; i<=$atoms_num; i++)); do
+	sph_name_current=$(echo "$sph_name" | head -$i | tail -1)
+	sph_value_current=$(echo "$sph_value" | head -$i | tail -1)
+	atom_current=$(echo "$atoms_list" | head -$i | tail -1)
+	printf "%-10s %-5s %10s\n" "$sph_name_current" "$atom_current" "$sph_value_current"
+    done
+fi
+
+
+exit 0

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+arch_dir=$1
+
+if [ -z "$arch_dir" ]; then 
+    echo -e "\tUsage:\tqzip dir_name"
+    exit
+fi
+
+nohup zip -r $PWD/$arch_dir.zip $PWD/$arch_dir/* 1>$PWD/$arch_dir.log 2>$PWD/$arch_dir.err &
+

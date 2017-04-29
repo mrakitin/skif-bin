@@ -1,0 +1,67 @@
+#!/bin/bash
+
+init_dir=$PWD
+
+nodelist=""
+taskid=""
+for ((;;)) ; do
+  case $1 in
+  -a)
+    shift
+    arg="a"
+    nodelist=$(nodes | sort | uniq)
+    ;;
+  -t)
+    shift
+    arg="t"
+    taskid=$1
+    nodelist=$(qstat -f -1 $taskid | grep exec_host | awk '{print $3}' | sed 's/+/\n/g' | cut -d/ -f1 | sort | uniq)
+    ;;
+  -m)
+    shift
+    arg="m"
+    if [ -f ".machine1" ]; then
+        nodelist=$(cat .machine1 | sort | uniq)
+    else
+	break
+    fi
+    ;;
+  -r)
+    shift
+    arg="r"
+    nodelist=$(qstat -f | grep exec_host | cut -d= -f2 | cut -d/ -f1 | sed 's/ //g' | sort | uniq)
+  ;;
+  *)
+    break
+    ;;
+  esac
+done
+
+
+printf "NODE\t%1sUSER\t%2sLOAD\t%2sMEM\t%1sTIME\t%5sNAME\n"
+for node in $nodelist ; do
+    v=$(ssh $(echo $node | sed 's/node/192.168/g; s/-0/./g; s/-/./g') ps -eo user,pcpu,pmem,time,fname | awk '$2>=5.0 {printf "\t%2s %8s %6s %10s %10s\n", $1, $2, $3, $4, $5}')
+    if [ "$arg" != "r" -a "$arg" != "t" ]; then
+    	echo -e "\E[34;40m\n*******************************************************************"; tput sgr0 # blue color
+	echo -e "\E[31;40m$node"; tput sgr0          # red color
+	echo -e "\E[36;40m$v"; tput sgr0             # cian color
+    else
+	path=$(ssh $(echo $node | sed 's/node/192.168/g; s/-0/./g; s/-/./g') lsof +c 30 \| grep $USER \| grep "/calc/" | awk '{print $1","$2","$9}' | grep "x,"| sed 's|/panfs/panasas||g' | sort | uniq | head -1 | cut -d, -f3)
+	qstat_string=$(qstat -a -n | grep $node -B1 | head -1)
+	if [ ! -z "$path" ]; then
+    	    qres_string=$(cd $path; qres -f | tail -1; cd $init_dir)
+	else
+	    qres_string="  WARNING!!! Calculation path not found"
+	fi
+
+	echo -e "\E[34;40m\n*******************************************************************"; tput sgr0 # blue color
+	echo -e "\E[31;40m$node"; tput sgr0          # red color
+	echo -e "\E[33;40m$path"; tput sgr0          # yellow color
+	echo -e "\E[32;40m$qstat_string"; tput sgr0  # green color
+	echo -e "\E[35;40m$qres_string"; tput sgr0   # purple color
+	echo -e "\E[36;40m$v"; tput sgr0             # cian color
+    fi
+done
+
+exit 0
+

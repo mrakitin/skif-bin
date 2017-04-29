@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# The script is to get information about Volume Optimization progress
+# Author : Maxim Rakitin
+# Email  : rms85@physics.susu.ac.ru
+# Date   : 2010-10-21
+# Version: 1.0
+
+# Make the output colored
+if [ "$1" = "-c" ]; then
+    bold_start="\033[1m"
+    bold_end="\033[0m"
+    red="\E[30;31m" 
+    green="\E[30;32m"
+    yellow="\E[30;33m"
+    purple="\E[30;35m"
+    cian="\E[30;36m"
+fi
+
+init_dir=$(echo $PWD)
+file=$(basename ${init_dir})
+struct_name=${file}.struct
+
+# Find structural files for volume optimization
+vol_values=$(ls -1 ${file}_vol_*.struct 2>/dev/null | rev | cut -d. -f2- | cut -d_ -f1  | rev | sort -g)
+unset vol_structs 
+for i in ${vol_values}; do
+    if [ ! -z "${vol_structs}" ]; then
+        vol_structs="\
+${vol_structs}
+$(ls ${file}_vol*_${i}.struct)"
+    else
+        vol_structs="\
+$(ls ${file}_vol*_${i}.struct)"
+    fi
+done
+
+if [ ! -z "${vol_structs}" ]; then
+    vol_structs_num=$(echo "${vol_structs}" | wc -l)
+    echo -e "\n${purple}${bold_start}Structural files for volume optimization:${bold_end}\n${vol_structs}"
+else
+    echo -e "${red}Total progress: 0/0"
+    tput sgr0
+    exit 1
+fi
+
+#  Find SCF files of relaxed structures
+unset vol_scf
+for i in ${vol_values}; do
+    if [ -f "${file}_vol"*"_${i}.scf" ]; then 
+	if [ ! -z "${vol_scf}" ]; then
+            vol_scf="\
+${vol_scf}
+$(ls ${file}_vol*_${i}.scf)"
+	else
+            vol_scf="\
+$(ls ${file}_vol*_${i}.scf)"
+	fi
+    fi
+done
+
+if [ ! -z "${vol_scf}" ]; then
+    vol_scf_num=$(echo "${vol_scf}" | wc -l)
+else
+    vol_scf_num="0"
+fi
+
+echo -e "\n${purple}${bold_start}SCF files of relaxed structures:${bold_end}\n${vol_scf}\n"
+echo -e "${green}${bold_start}Total progress: ${vol_scf_num}/${vol_structs_num}${bold_end}"
+
+j=0
+unset string len
+
+for struct in ${vol_structs}; do
+    unset scf_file
+    let "j = $j + 1"
+
+    struct_len[$j]=${#struct}
+    alat[$j]=$(head -4 $struct | tail -1 | awk '{print $1}' | cut -c 1-8)
+
+    scf_file="$(echo $struct | rev | cut -d. -f2- | rev).scf"
+    if [ -f "${scf_file}" ]; then
+	ene[$j]=$(printf "%1.6f" "$(grep ":ENE" ${scf_file} | tail -1 | awk '{print $NF}')")
+    else
+	ene[$j]='--------------'
+    fi
+
+    if [ ! -z "$string" ]; then
+    	string="\
+$string
+${alat[$j]} $struct ${ene[$j]}"
+	len="\
+$len
+${struct_len[$j]}"
+    else
+	string="${alat[$j]}   $struct   ${ene[$j]}"
+	len="${struct_len[$j]}"
+    fi
+done
+
+sorted_len=$(echo "$len" | sort -g | tail -1)
+sorted_strings=$(echo "$string" | sort -g | awk '{print $2"   "$1"   "$3}')
+header=$(printf "%-"${sorted_len}"s     %-8s    %-14s" "Struct file" "Alat" "Energy, Ry")
+
+# Calculate the length of the dash line after the header
+dash_line=""
+for((i=1; i<${#header}; i++)); do
+    dash_line="$dash_line""-"
+done
+
+# Output part
+echo -e "\n"$cian"$header"
+tput sgr0
+
+echo -e "$yellow""$dash_line"
+tput sgr0
+
+echo -e "$sorted_strings"
+
+
+exit 0
+

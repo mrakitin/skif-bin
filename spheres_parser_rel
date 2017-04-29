@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# This is a parser of a WIEN2k struct file. It finds two first spheres of H atom
+# First sphere of H atom : 14 17 32 41
+# Second sphere of H atom: 15 18 31 40
+
+if [ -z "$1" -o ! -f "$1" ]; then
+    echo "  WARNING!!! A struct file is not specified or doesn't exist.
+                       Exiting..."
+    exit 1
+fi
+
+struct_file=$1
+
+# Find lattice constants for the current structure
+#alat_string=$(cat ${struct_file} | head -4 | tail -1)
+#alat_x=$(echo "${alat_string}" | awk '{print $1}')
+#alat_y=$(echo "${alat_string}" | awk '{print $2}')
+#alat_z=$(echo "${alat_string}" | awk '{print $3}')
+alat_x=1
+alat_y=1
+alat_z=1
+
+atoms_list=$(grep "ATOM" ${struct_file} | grep -v "ATOMS")
+
+# The first sphere processing:
+atom14_crds=$(echo "${atoms_list}" | grep "14:" | cut -d: -f2-)
+x14=$(echo "scale=8; $(echo "${atom14_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y14=$(echo "scale=8; $(echo "${atom14_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z14=$(echo "scale=8; $(echo "${atom14_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+atom17_crds=$(echo "${atoms_list}" | grep "17:" | cut -d: -f2-)
+x17=$(echo "scale=8; $(echo "${atom17_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y17=$(echo "scale=8; $(echo "${atom17_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z17=$(echo "scale=8; $(echo "${atom17_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+atom32_crds=$(echo "${atoms_list}" | grep "32:" | cut -d: -f2-)
+x32=$(echo "scale=8; $(echo "${atom32_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y32=$(echo "scale=8; $(echo "${atom32_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z32=$(echo "scale=8; $(echo "${atom32_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+atom41_crds=$(echo "${atoms_list}" | grep "41:" | cut -d: -f2-)
+x41=$(echo "scale=8; $(echo "${atom41_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y41=$(echo "scale=8; $(echo "${atom41_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z41=$(echo "scale=8; $(echo "${atom41_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+cat << EOF > $(basename $PWD).1st_sphere
+$x14 $y14 $z14
+$x17 $y17 $z17
+$x32 $y32 $z32
+$x41 $y41 $z41
+EOF
+
+echo -e "\nThe first sphere's peaks:"
+cat "$(basename $PWD).1st_sphere"
+
+
+# The second sphere processing:
+atom15_crds=$(echo "${atoms_list}" | grep "15:" | cut -d: -f2-)
+x15=$(echo "scale=8; $(echo "${atom15_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y15=$(echo "scale=8; $(echo "${atom15_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z15=$(echo "scale=8; $(echo "${atom15_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+atom18_crds=$(echo "${atoms_list}" | grep "18:" | cut -d: -f2-)
+x18=$(echo "scale=8; $(echo "${atom18_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y18=$(echo "scale=8; $(echo "${atom18_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z18=$(echo "scale=8; $(echo "${atom18_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+atom31_crds=$(echo "${atoms_list}" | grep "31:" | cut -d: -f2-)
+x31=$(echo "scale=8; $(echo "${atom31_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y31=$(echo "scale=8; $(echo "${atom31_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z31=$(echo "scale=8; $(echo "${atom31_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+atom40_crds=$(echo "${atoms_list}" | grep "40:" | cut -d: -f2-)
+x40=$(echo "scale=8; $(echo "${atom40_crds}" | awk '{print $1}' | cut -d= -f2) * ${alat_x}" | bc)
+y40=$(echo "scale=8; $(echo "${atom40_crds}" | awk '{print $2}' | cut -d= -f2) * ${alat_y}" | bc)
+z40=$(echo "scale=8; $(echo "${atom40_crds}" | awk '{print $3}' | cut -d= -f2) * ${alat_z}" | bc)
+
+cat << EOF > $(basename $PWD).2nd_sphere
+$x15 $y15 $z15
+$x18 $y18 $z18
+$x31 $y31 $z31
+$x40 $y40 $z40
+EOF
+
+echo -e "\nThe second sphere's peaks:"
+cat "$(basename $PWD).2nd_sphere"
+echo ""
+
+
+exit 0
+

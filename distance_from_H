@@ -1,0 +1,143 @@
+#!/bin/bash
+
+######################### Help part ####################################
+help() 
+{
+cat << EOF
+
+$(basename $0) script is to output information about distances from 
+hydrogen atom to necessary impurity (Pd, Ti, etc)
+
+Usage:
+==========
+    $(basename $0) options
+
+OPTIONS:
+	    -i file
+	    --input file
+		Specifies the file to find the distances in.
+
+	    -a atom_name
+            --atom atom_name
+		Specifies atom name to find distance from it to hydrogen.
+
+            -h
+            --help
+		Invokes help information.
+
+Author  : Maxim Rakitin (rms85@physics.susu.ac.ru)
+Version : 2.0
+Date    : 2010-11-20 (Sat)
+
+EOF
+
+exit 1
+} 
+
+######################### Arguments part ###############################
+
+if [ -z "$1" ]; then
+    echo -e "
+  WARNING!!! Point impurity atom and/or struct-file. Use '$(basename $0) -h' for more information.
+  Exiting..."
+
+    exit 2
+fi
+
+# Defaults:
+struct_file="$(basename $PWD).struct"
+Me=$1
+
+while [ "$#" -gt "0" ]; do
+    arg=$1
+    shift
+    case $arg in
+	-i | --input)
+	    struct_file=$1
+	    shift
+	;;
+	-a | --atom)
+            Me=$1
+	    shift
+	;;
+	-h | --help)
+            help
+	;;
+    esac
+
+done
+
+
+######################### Chtck part ###################################
+if [ ! -f "${struct_file}" ]; then
+    echo -e "
+  WARNING!!! There is no ${struct_file} in $PWD. Use '$(basename $0) -h' for more information.
+  Exiting...
+"
+    exit 3
+fi
+
+######################### Main part ####################################
+
+#---> Find alat
+alat_string=$(head -4 $struct_file | tail -1)
+echo "Alat = $alat_string"
+alat_x=$(echo $alat_string | awk '{print $1}')
+alat_y=$(echo $alat_string | awk '{print $2}')
+alat_z=$(echo $alat_string | awk '{print $3}')
+#sphere_no=...
+
+#---> Find all H coordinates
+H_string=$(grep "H " $struct_file -B2 | head -1 | awk -F: '{print $2}')
+# This will produce the string like:
+#  X=0.50158297 Y=0.56548723 Z=0.33333298
+H_x=$(echo "$H_string" | awk '{print $1}' | awk -F= '{print $2}')
+H_y=$(echo "$H_string" | awk '{print $2}' | awk -F= '{print $2}')
+H_z=$(echo "$H_string" | awk '{print $3}' | awk -F= '{print $2}')
+
+#echo "H_string = $H_string"
+echo "H crds         : $H_x $H_y $H_z"
+
+#---> Find all Me coordinates
+Me_string=$(grep "$Me " $struct_file -B2 | head -1 | awk -F: '{print $2}')
+# This will produce the string like:
+#  X=0.50158297 Y=0.56548723 Z=0.33333298
+Me_x=$(echo "$Me_string" | awk '{print $1}' | awk -F= '{print $2}')
+test_limits=$(echo "$Me_x>=0.98" | bc)
+if [ "$test_limits" = 1 ] ; then
+    Me_x1=$(echo "scale=8; ${Me_x} - 1" | bc)
+else
+    Me_x1=$Me_x
+fi
+
+Me_y=$(echo "$Me_string" | awk '{print $2}' | awk -F= '{print $2}')
+test_limits=$(echo "$Me_y>=0.98" | bc)
+if [ "$test_limits" = 1 ] ; then
+    Me_y1=$(echo "scale=8; ${Me_y} - 1" | bc)
+else
+    Me_y1=$Me_y
+fi
+
+Me_z=$(echo "$Me_string" | awk '{print $3}' | awk -F= '{print $2}')
+test_limits=$(echo "$Me_z>=0.98" | bc)
+if [ "$test_limits" = 1 ] ; then
+    Me_z1=$(echo "scale=8; ${Me_z} - 1" | bc)
+else
+    Me_z1=$Me_z
+fi
+
+#echo "Me_string = $Me_string"
+echo "$Me crds        : $Me_x $Me_y $Me_z"
+echo "$Me crds (shift): $Me_x1 $Me_y1 $Me_z1"
+
+#---> Calculate distance of Me from H
+distance1=`echo "scale=8; sqrt((($Me_x - $H_x)*$alat_x)^2 + (($Me_y - $H_y)*$alat_y)^2 + (($Me_z - $H_z)*$alat_z)^2)" | bc`
+distance2=`echo "scale=8; sqrt((($Me_x1 - $H_x)*$alat_x)^2 + (($Me_y1 - $H_y)*$alat_y)^2 + (($Me_z1 - $H_z)*$alat_z)^2)" | bc`
+
+#echo "Sphere #: $sphere_no"
+echo "Distance of $Me from H (no shift): $distance1"
+echo "Distance of $Me from H (shift)   : $distance2"
+
+
+exit 0
+

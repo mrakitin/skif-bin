@@ -1,0 +1,36 @@
+#!/bin/bash
+
+#---> Check if the argument exists
+if [ -z "$1" ]; then
+    echo "  WARNING!!! Point PBS task ID or nodes file to get info about free memory on corresponding nodes"
+    exit 1
+fi
+argument=$1
+
+#---> Check if the task ID is valid
+isvalid_task=`qstat -a | grep $argument`
+isvalid_file=`ls $argument 2>/dev/null`
+#echo "----- isvalid_task = $isvalid_task"
+#echo "----- isvalid_file = $isvalid_file"
+
+if [ -z "$isvalid_task" -a -z "$isvalid_file" ]; then
+    echo "  WARNING!!! Pointed PBS task ID or file is not valid"
+    exit 2
+fi
+
+#---> Show information about processes on the nodes
+if [ ! -z "$isvalid_task" ]; then
+    qtop -t $argument
+    nodes_list=`qstat -f -1 $argument | grep exec_host | awk -F= '{print $2}' | sed 's/ //g; s/+/\n/g' | awk -F/ '{print $1}' | sort | uniq`
+elif [ ! -z "$isvalid_file" ]; then
+    qtop_private $argument
+    nodes_list=`cat $argument`
+fi
+
+#---> Get nodes list and check each nodes
+for i in $nodes_list; do 
+    echo === $i ===
+    ssh $i free
+done
+
+exit 0

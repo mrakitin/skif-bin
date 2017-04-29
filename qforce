@@ -1,0 +1,10 @@
+#!/bin/bash
+
+file=`basename $PWD`
+atoms_num=`head -2 $file.struct | tail -1 | awk '{print $2}'`
+
+max_force=`grep :FGL $file.scf | tail -$atoms_num | awk '{print $5}' | sort | tail -1 | cut -c1-5`
+
+echo "=== max force is: $max_force ==="
+
+exit 0

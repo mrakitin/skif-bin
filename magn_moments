@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# This script is for get magnetic moments for all spheres of hydrogen in Fe53TiH.
+
+init_dir=$PWD
+outfile=$init_dir/`basename $PWD`_mmoments.txt
+if [ -f "$outfile" ]; then
+    rm -f $outfile
+fi
+
+files_list=`find $init_dir -maxdepth 2 -name *.scf`
+files_num=`echo "$files_list" | wc -l`
+
+z_atom=22 # Ti atom with Z=22
+
+for ((i=1; i<=$files_num; i++))
+do
+    cd $init_dir
+    current_file=`echo "$files_list" | head -$i | tail -1`
+    current_dir=`dirname $current_file`
+    struct_name=`basename $current_file | cut -d. -f1`
+
+    cd $current_dir
+    echo $struct_name >> $outfile
+    grep "Z: $z_atom" *.struct -B2  >> $outfile
+    echo "------------------------------------------------------------" >> $outfile
+    grep ":MMI" $current_file | tail -56 >> $outfile
+    
+    echo -e "============================================================\n\n" >> $outfile
+done
+
+exit 0
+

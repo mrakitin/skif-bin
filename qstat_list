@@ -1,0 +1,11 @@
+#!/bin/bash
+
+qstat_file=$HOME/myqueue/qstat.file
+sec="10"
+
+while [ 1 = 1 ]; do
+    qstat -a -n > $qstat_file
+    sleep $sec
+done
+
+exit 0

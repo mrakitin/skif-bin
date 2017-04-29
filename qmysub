@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Description: The script is for submitting a job to run on modes from .machines file
+# Author: Maxim Rakitin
+# Email : rms85@physics.susu.ac.ru
+# Date  : 2010-09-15 (Wed)
+
+if [ -z "$1" ]; then
+    echo "  WARNING!!! Please point *.job file"
+    exit 1
+fi
+
+if [ ! -f .machines ]; then
+    echo "  WARNING!!! There is no .machines file"
+    exit 2
+fi
+
+job_file=$1
+if [ -f "$job_file" ]; then
+#    ssh $(cat .machines | grep 1: | head -1 | cut -d: -f2 | awk '{print $1}') cd $PWD\; pwd\; backrun $job_file
+    ssh $(cat .machines | grep 1: | head -1 | cut -d: -f2 | awk '{print $1}') cd $PWD\; pwd\; $job_file \> $(basename $PWD).myout 2\> $(basename $PWD).myerr \& 
+fi
+
+exit 0

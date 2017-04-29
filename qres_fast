@@ -1,0 +1,435 @@
+#!/bin/bash
+
+
+########################## Help part ####################################
+help ()
+{
+cat << EOF
+
+WIEN2k all jobs processor script $(basename $0) (c) (qUERY resULT) is to 
+output main information of the calculation(s) in the current directory.
+
+Usage:
+======
+    $(basename $PWD) options
+    
+OPTIONS:
+    -a
+    --archive
+	Include calculations in .archive directories to the report.
+	By default they are not processed.
+
+    -b
+    --nocolor
+	Disable all color for reports.
+
+    -c
+    --column
+	Print information in column.
+
+    -d
+    -dir
+        Display calculations in the specified directory.
+
+    -n
+    --nocut
+	Don't cut output strings, even if they go beyond the limits of the screen.
+	Useful for logs.
+
+    -s mask
+    --search mask
+	Filter calculations by mask.
+
+    -h
+    --help
+	Invoke help.
+    
+Version : 3.1
+Author  : Maxim Rakitin (rms85@physics.susu.ac.ru)
+Date    : 2010-11-12 (Fri)
+
+EOF
+
+exit 1
+}
+
+########################## Arguments processing #########################
+if [ ! -z "$1" ]; then
+    unset display_arch display_column display_forces mask
+    while [ "$#" -gt "0" ]; do
+	arg=$1
+	shift
+	case $arg in
+	    -a | -arch | --arch | -archive | --archive)
+		display_arch="yes"
+	    ;;
+	    -b | --nocolor)
+		nocolor="yes"
+	    ;;
+	    -c | -col | --col | -column | --column)
+		display_column="yes"
+	    ;;
+            -d | -dir)
+                search_dir=$1
+                shift
+            ;;
+	    -n | --nocut)
+		nocut="yes"
+	    ;;
+	    -s | --search)
+		mask="$1"
+		shift
+	    ;;
+	    -h | --help)
+		help
+    	    ;;
+	esac
+    done
+fi
+
+########################## Check part ###################################
+# Define the batch system: PBS/Torque or SLURM:
+which_qsub=$(which qsub 2>/dev/null)
+which_sbatch=$(which sbatch 2>/dev/null)
+
+if [ ! -z "${which_qsub}" -a -z "${which_sbatch}" ]; then
+    queue_system="PBS"
+elif [ -z "${which_qsub}" -a ! -z "${which_sbatch}" ]; then
+    queue_system="SLURM"
+else
+    queue_system="NONE"
+    echo "  Unknown queue system!!! Exiting..."
+    exit 1
+fi
+
+# Avoid processing of directories, which are not included in ~/calc
+if [ ! -z "$search_dir" ]; then
+    cd $search_dir
+elif [ -z "$(echo $PWD | grep "$HOME/calc")" ]; then
+    cd $HOME/calc
+fi
+
+unset find_dir full_dirs_list num
+find_dir="$PWD"
+
+# Default list of calc directories:
+full_dirs_list=$(find -P "$find_dir" -mount -name "*.dayfile" | grep -v ".archive" | sort | uniq)
+
+# Full List of calc directories, including .archive directory:
+if [ "${display_arch}" = "yes" ]; then
+    full_dirs_list=$(find -P $find_dir -mount -name "*.dayfile" | sort | uniq)
+fi
+
+# Filtered list of calc directories
+if [ ! -z "$mask" ]; then
+    full_dirs_list=$(find -P $find_dir -mount -name "*.dayfile" | grep -e "$mask" | sort | uniq)
+fi
+
+full_dirs_list=$(echo "${full_dirs_list}" | sed 's|/panfs/panasas||g')
+
+#---> Select unique directories, i.e. exclude cases when dayfile name differs from directory name
+unset dirs_list full_num
+if [ ! -z "${full_dirs_list}" ]; then
+    full_num=$(echo "${full_dirs_list}" | wc -l)
+else
+    full_num=0
+fi
+
+for ((i=1; i<=${full_num}; i++)); do
+    unset dir_string dir_name dayfile_name
+
+    dir_string=$(echo "${full_dirs_list}" | head -$i | tail -1)
+    dir_name=`echo ${dir_string} | awk -F / '{print $(NF-1)}'`
+    dayfile_name=$(echo ${dir_string} | awk -F / '{print $NF}' | rev | cut -d. -f2- | rev)
+
+    # Compare calculation dir name and name of found dayfile
+    if [ "${dir_name}" = "${dayfile_name}" ]; then
+	if [ ! -z "${dirs_list}" ]; then
+	    dirs_list="${dirs_list}
+${dir_string}"
+	else
+	    dirs_list="${dir_string}"
+	fi
+    fi
+done
+
+if [ -z "${dirs_list}" ]; then
+    num="0"
+else
+    num=$(echo "${dirs_list}" | wc -l | sed 's/ //g')
+fi
+
+#---> Get running jobs list:
+#if [ "${queue_system}" = "PBS" ]; then
+#    running_jobs=$(echo $(qstat -f -1) | sed 's/Job Id:/\nJob Id:/g' | grep .)
+#else
+#    running_jobs=$(scontrol show job -o | sed 's/\/job$//g')
+#    jobs_list=$(squeue -o "%i,%j,%T" -u $USER -h)
+#fi
+
+#---> Define width of window
+if [ "$nocut" != "yes" -a "$TERM" = "xterm" ]; then
+    terminal_width=$(tput cols)
+else
+    terminal_width="1000"
+fi
+
+
+#---> Color processing:
+if [ "$nocolor" != "yes" ]; then
+    COLOR_NORMAL="tput sgr0"    # normal color
+    COLOR_GREEN="tput setaf 2"  # green color
+    COLOR_RED="tput setaf 1"    # red color
+    COLOR_BLUE="tput setaf 4"   # blue color
+else
+    COLOR_NORMAL=""
+    COLOR_GREEN=""
+    COLOR_RED=""
+    COLOR_BLUE=""
+fi
+
+
+
+########################## Process header ###############################
+unset header hitem
+
+# Header item:
+hitem[1]="Name"
+hitem[2]="Cycles"
+hitem[3]="Status"
+hitem[4]="Conv ENE"
+hitem[5]="Conv CHG"
+hitem[6]="Max force"
+hitem[7]="Energy"
+hitem[8]="Start date"
+hitem[9]="End date"
+hitem[10]="Job ID"
+hitem[11]="Path"
+
+header="\
+$(cat $WIENROOT/VERSION)
+Number of found calculations: $num
+--------------------------------"
+
+header="\
+$header
+$(printf "%-25s   %-8s %-7s %-10s %-10s %-10s %-16s %-18s %-18s %-8s %-30s\n" "${hitem[1]}" "${hitem[2]}" "${hitem[3]}" "${hitem[4]}" "${hitem[5]}" "${hitem[6]}" "${hitem[7]}" "${hitem[8]}" "${hitem[9]}" "${hitem[10]}" "${hitem[11]}" | cut -c -$terminal_width)
+$(echo "-------------------------------------------------------------------------------------------------------------------------------------------------------------------------" | cut -c -$terminal_width)"
+
+if [ "${display_column}" != "yes" ]; then
+    echo "$header"
+fi
+
+########################## Process all found directories ################
+for ((i=1; i<=$num; i++)); do
+    # Clear the variables
+    unset value calc_dir struct_name energy_conv charge_conv force_conv force_requested iterations min_steps \
+	  scf_dir energy start_date_nofmt start_date end_date_nofmt end_date status isrun_qstat isrun_scontrol \
+          isrun iserror isstop time_diff
+  
+#---> [1]: Name
+    calc_dir=$(dirname $(echo "${dirs_list}" | head -$i | tail -1))
+    if [ -d "save" ] ; then
+	scf_dir=$calc_dir/save
+    else
+        scf_dir=$calc_dir
+    fi  
+    cd $calc_dir
+    struct_name=$(basename ${calc_dir})
+    short_struct_name=$(echo "${struct_name}" | cut -c 1-25)
+    len_full=$(echo "$struct_name" | wc -c)
+    len_short=$(echo "${short_struct_name}" | wc -c)
+    
+    if [ "$len_full" -gt "$len_short" ]; then
+        value[1]=$(echo $(echo ${struct_name} | cut -c 1-23)..)
+    else
+        value[1]=${struct_name}
+    fi
+
+#---> [2]: Cycles
+    if [ -f "${struct_name}.scf" ]; then
+	iterations=$(grep -c ":ITE" ${struct_name}.scf)
+    else
+	iterations="0"
+    fi
+
+    min_steps="-"
+    if [ -f :log ]; then 
+	if [ ! -z "`grep "(min)" :log`" ]; then
+    	    if [ -f "${struct_name}.scf_mini" ]; then
+    		min_steps=$(grep -c ":ITE" ${struct_name}.scf_mini)
+    	    else
+		min_steps="0"
+    	    fi
+	else
+    	    min_steps="-"
+	fi
+    fi
+    value[2]=$(printf "%3s %1s %4s" "${min_steps}" "+" "${iterations}")
+
+#---> [3]: Status
+    if [ -f "${struct_name}.dayfile" ]; then
+	    isstop=$(tac ${struct_name}.dayfile | grep "stop" -m1 | grep -v error)
+	    iserror=$(tac ${struct_name}.dayfile | grep -i "stop error" -m1)
+    fi
+
+#    if [ "${queue_system}" = "PBS" ]; then
+#        isrun_qstat=$(echo "$running_jobs" | grep "PBS_O_WORKDIR=${calc_dir},")
+#	if [ ! -z "$isrun_qstat" ] ; then
+#            jobid=$(echo "$isrun_qstat" | awk '{print $3}' | cut -d. -f1 | tail -1)
+#            isrun=1
+#            status=" $(echo "${isrun_qstat}" | sed 's/,/\n/g; s/job_/\njob_/g; s/Job_/\nJob_/g' | grep job_state | cut -d= -f2 | awk '{print $1}') "
+#        fi
+#    else
+#        isrun_scontrol=$(echo "$running_jobs" | grep "${calc_dir}$")
+#        if [ ! -z "$isrun_scontrol" ] ; then
+#            jobid=$(echo "$isrun_scontrol" | awk '{print $1}' | cut -d= -f2 | tail -1)
+#            isrun=$(echo "${jobs_list}" | grep -e "${struct_name}\." | grep "$jobid")
+#            if [ ! -z "$isrun" ]; then
+#                status=" $(echo $isrun | cut -d, -f3 | cut -c1) "
+#            fi
+#        fi
+#    fi
+
+    if [ -z "$status" ] ; then
+        if [ ! -z "$iserror" ] ; then
+            status=" E "
+	elif [ ! -z "$isstop" -a -f $scf_dir/$struct_name.scf ]; then
+            status="-S-"
+	else
+            status=" U "
+	fi
+    fi
+    value[3]=${status}
+    
+
+#---> [4]: Conv ENE
+    energy_conv=$(tac ${struct_name}.dayfile | grep -m1 ":ENERGY" | awk -F: '{print $3}' | awk '{print $3}' | cut -c 1-8)
+    if [ "${energy_conv}" = "0" ] ; then
+	energy_conv=".0000000"
+    elif [ "${energy_conv}" = "" ] ; then
+	energy_conv="--------"
+    fi
+    value[4]=${energy_conv}
+
+#---> [5]: Conv CHG
+    charge_conv=$(tac ${struct_name}.dayfile | grep -m1 ":CHARGE" | awk -F: '{print $3}' | awk '{print $3}' | cut -c 1-8)
+    if [ "${charge_conv}" = "0" ] ; then
+	charge_conv=".0000000"
+    elif [ -z "${charge_conv}" ] ; then
+	charge_conv="--------"
+    fi
+    value[5]=${charge_conv}
+
+#---> [6]: Conv Force
+    force_conv="-------"
+    if [ -f "${struct_name}.scf" ]; then
+        force_conv=$(tac ${struct_name}.scf | grep ":FGL" -m$(grep -c "ATOM " ${struct_name}.struct) | awk '{print $3}; {print $4}; {print $5}' | sed 's/-//g' | sort -g | tail -1 | cut -c 1-7)
+	if [ -z "${force_conv}" ]; then
+    	    force_conv="-------"
+	fi
+    fi
+    value[6]=${force_conv}
+
+#    if [ -f "${struct_name}.inM" ]; then
+#        force_requested=$(cat ${struct_name}.inM | head -1 | awk '{print $2}')
+#    else
+        force_requested="2.0"
+#    fi
+
+#---> [7]: Energy
+    if [ -f "${scf_dir}/${struct_name}.scf" ]; then
+	energy_nofmt="$(tac ${scf_dir}/${struct_name}.scf | grep ":ENE" -m1 | cut -d"=" -f 2 | sed 's/ //g')"
+	if [ ! -z "${energy_nofmt}" ]; then
+	    energy=$(printf "%10.6f" "${energy_nofmt}")
+	else
+	    energy="--------------"
+	fi
+    else
+	energy="--------------"
+    fi
+
+#---> [8]: Start date
+    start_date="----------------"
+    if [ -f "${struct_name}.dayfile" ]; then
+	start_date_nofmt=`grep -s " start " ${struct_name}.dayfile | cut -d'(' -f 2 | cut -d')' -f 1 | sed 's/YEKST/UTC+6/'`
+        if [ ! -z "${start_date_nofmt}" ]; then
+	    start_date=$(date -d "$start_date_nofmt" +"%F %R")
+	else
+	    start_date="----------------"
+        fi
+    fi
+
+#---> [9]: End date
+    if [ -f ":log" ] ; then
+        end_date_nofmt=$(tail -1 :log | cut -d ">" -f1 | sed 's/YEKST/UTC+6/')
+        if [ ! -z "${end_date_nofmt}" ]; then
+    	    end_date=$(date -d "$end_date_nofmt" +"%F %R")
+        else
+    	    # end_date=$(ls -lA :log | cut -d" " -f6,7)   # old version
+            end_date=$(date -d "$(stat :log | grep "Modify" | cut -d: -f2- | awk '{print $1,$2}')" +"%F %H:%M")
+        fi
+    else
+        end_date=$(date -d "$(stat $calc_dir | grep Modify | cut -d: -f2- | awk '{print $1, $2}')" +"%F %R")
+    fi
+
+#---> [10]: Job ID
+    if [ ! -z "$isrun" ]; then
+    	value[10]="$jobid"
+    else
+	value[10]="--"
+    fi
+
+#---> [11]: Path
+    if [ "${display_column}" != "yes" ]; then
+	calc_dir=$(echo "${calc_dir}" | sed 's|/home/'"$USER"'|~|g')
+    fi
+
+#---> Process different arrays
+    value[7]=$energy
+    value[8]=${start_date}
+    value[9]=${end_date}
+    value[11]=${calc_dir}
+
+#---> Dates processing and printing error jobs in red.
+    if [ -f :log ]; then
+        time_diff=$(echo "($(date --date="now" +%s) - $(date --date="$end_date" +%s))" | bc)
+    else
+        time_diff=10000
+    fi
+
+#---> Print data for each directory
+    function print_command() {
+	printf "%-25s %11s %4s   %-10s %-10s %-10s %14s   %-18s %-18s %7s  %-30s\n" "${value[1]}" "${value[2]}" "${value[3]}" "${value[4]}" "${value[5]}" "${value[6]}" "${value[7]}" "${value[8]}" "${value[9]}" "${value[10]}" "${value[11]}" | cut -c -$terminal_width
+    }
+
+    if [ "${display_column}" != "yes" ]; then
+	if [ "$status" = "-S-" ]; then
+            if [ "$(echo "${force_conv} <= ${force_requested}" | bc)" = "1" ]; then
+                $COLOR_GREEN
+		print_command
+                $COLOR_NORMAL
+            else
+                $COLOR_BLUE
+		print_command
+                $COLOR_NORMAL
+            fi
+	else
+            if [ "$time_diff" -lt "1200" -a "$status" != " E " -a "$status" != " U " ]; then
+		print_command
+	    else
+	        $COLOR_RED
+                print_command
+		$COLOR_NORMAL
+	    fi
+	fi
+    else
+	for ((j=1; j<=${#value[@]}; j++)); do
+    	    echo "${hitem[$j]}: ${value[$j]}"
+	done
+    fi
+done
+
+
+exit 0
+

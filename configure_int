@@ -1,0 +1,247 @@
+#!/bin/csh -f
+# interface for making case.int
+# created with "Morteza Jamal"
+# (C)2008 by Morteza Jamal
+unalias cp
+unalias rm
+unalias mv
+#clear
+set file    = `pwd`
+set file    = $file:t
+echo "     (C)2008 by Morteza Jamal       "
+echo "####################################"
+echo "#                                  #"
+echo " Configures and creates $file.int "
+echo "#                                  #"
+echo "####################################"
+echo ""
+set updn = ""
+unset help
+unset batch
+#while ($#argv)
+  switch ($1)
+  case -h:
+    set help
+    shift; breaksw
+  case -b:
+    set batch
+    shift; breaksw
+#  default:
+#    shift; breaksw
+  endsw
+#end
+if ($?help) goto help
+set fileorb = ":fileorb"
+if  (-e "$file.qtlup") set updn = "up"
+if !(-e "$file.qtl$updn") then
+   set dosfile = $file.qtl$updn
+   goto error
+endif 
+if (-e "$file.int") rm $file.int
+if (-e "$file.intc") rm $file.intc
+set ndos = 0
+
+if !(-e "$file.struct") then
+   set dosfile = $file.struct
+   goto error
+endif 
+set conatom = 1
+#set noneqatom = `head -2 < $file.struct|awk '{print $3}'`
+set noneqatom = `head -2 < $file.struct|tail -1|cut -c28-30`
+@ noneqatom = $noneqatom + 1       
+Pinfnoneqatom:
+if ( $conatom < $noneqatom ) then
+  set atomname = `grep Z: $file.struct|head -$conatom|tail -1|cut -f1 -d" " `
+  echo "atom $conatom is $atomname"
+  @ conatom = $conatom + 1
+  goto Pinfnoneqatom
+endif 
+@ conatom = $conatom - 1
+echo ""
+echo "*** For Total DOS type 'total' ***"
+set defaultatom=0
+repforatom:
+@ defaultatom ++
+echo ""
+echo "*** For finishing type 'end' ***"
+echo ""
+echo -n "Please enter the number of atom that you like to plot DOS? (default:$defaultatom) "
+if($?batch) then
+  set natom=$1
+  shift
+  echo $natom
+else
+  set natom = ($<)
+endif
+#echo $natom
+
+set natom = `echo $natom | tr "A-Z" "a-z"`
+
+if ( $natom != "end" && $natom != "total" ) then
+ if ( $natom > $conatom ) then
+  set masserror = "You have only $conatom atoms"
+  goto error2
+ endif
+endif
+
+if ( $natom == "" ) set natom = $defaultatom
+if ( $natom == "end" ) then
+ if ( $ndos != 0 ) then
+  goto writtingf
+ else
+  set masserror = "You did not select any orbitals correctly"
+  goto error2
+ endif
+endif
+if ( $natom == "total" ) then
+ echo "   0  1  total-DOS " >> $file.intc
+ @ ndos = $ndos + 1
+ goto repforatom
+endif
+set atomname = `grep Z: $file.struct|head -$natom|tail -1|cut -f1 -d" " `
+#echo "You can select these orbitals for $atomname atom."
+set qtl = 1
+set orbital_all
+repforqtl:
+set orbital = `grep JATOM $file.qtl$updn | head -$natom | tail -1 | cut -c32- | cut -f$qtl -d,`
+if ( $orbital != "" ) then
+       switch ($orbital)
+	case 0:
+	    set orbital = S
+	    breaksw
+	case 1:
+	    set orbital = P
+	    breaksw
+	case 2:
+	    set orbital = D
+	    breaksw
+	case 3:
+	    set orbital = F
+	    breaksw
+	default:
+	    breaksw
+	endsw
+        set orbital = `echo $orbital | tr "A-Z" "a-z"`
+#        echo "$orbital"
+        set orbital_all=`echo "$orbital_all,$orbital"`
+        @ qtl = $qtl + 1
+        goto repforqtl
+endif
+set orbital_all=`echo $orbital_all|cut -c2-`
+echo "Select PDOS for $atomname from: $orbital_all (give a comma-separated list)."
+if($?batch) then
+  set selorb=$1
+  shift
+  echo $selorb
+else
+  set selorb = ($<)
+endif
+echo "$selorb," > $fileorb 
+set qtlyou = 1
+repforqtlyou:
+set singorb = `cut -f$qtlyou -d,< $fileorb`
+if ( $singorb != "" ) then
+set singorb = `echo $singorb | tr "A-Z" "a-z"`
+set qtl = 1
+repforcompareqtl:
+set orbital = `grep JATOM $file.qtl$updn | head -$natom | tail -1 | cut -c32- | cut -f$qtl -d,`
+if ( $orbital != "" ) then
+       switch ($orbital)
+	case 0:
+	    set orbital = S
+	    breaksw
+	case 1:
+	    set orbital = P
+	    breaksw
+	case 2:
+	    set orbital = D
+	    breaksw
+	case 3:
+	    set orbital = F
+	    breaksw
+	default:
+	    breaksw
+	endsw
+        set orbital = `echo $orbital | tr "A-Z" "a-z"`
+if ( $singorb == $orbital )  then 
+ @ ndos = $ndos + 1
+ echo "   $natom  $qtl  $orbital-$atomname " >> $file.intc
+ @ qtlyou = $qtlyou + 1
+ goto repforqtlyou
+endif
+@ qtl = $qtl + 1
+goto repforcompareqtl
+endif
+
+@ qtlyou = $qtlyou + 1
+goto repforqtlyou
+
+endif
+goto repforatom
+writtingf:
+set cline = 1
+echo "$file             #Title" >> $file.int
+#---> Default value of Gauss Broadening parameter is 0.005, example for TiC contains 0.005, but for good broadening we need to set it to 0.01.
+#---> Maxim Rakitin, 2010-04-21
+echo " -4.000   0.00250   5.000  0.01      #Emin, DE, Emax, Gauss-Broad" >> $file.int
+echo "     $ndos                               #Number of DOS" >> $file.int
+repcline:
+if ( $cline <= $ndos ) then
+set linesofintc = ` head -$cline < $file.intc | tail -1`
+echo "     $linesofintc" >> $file.int
+@ cline = $cline + 1
+goto repcline
+endif
+rm $file.intc
+if (-e "$fileorb") rm -f $fileorb
+echo ""
+echo "$file.int is ready for using."
+echo ""
+exit(0)
+error:
+echo ">>>"
+echo ">>> ERROR: $dosfile not found\!"
+echo ">>>"
+exit(1)
+error2:
+echo ">>>"
+echo ">>> ERROR: $masserror\!"
+echo ">>>"
+if (-e "$fileorb") rm $fileorb
+exit(1)
+
+help:
+
+cat <<EOF 
+configure-int_lapw is an interface script to create 'case.int' .
+
+You can specify interactively:
+  total        (for plotting 'Total Dos')
+  N            (to select atom N)
+    s,p,d,...  (to select a set of PDOS for previously selected atom N,
+                use labels as listed in the header of your case.qtl file)
+  end          (for exit)
+
+There is also a "batch" (non-interactive) mode:
+
+configure-int_lapw -b  total 1 tot,d,d-eg,d-t2g  2 tot,s,p  end
+
+will prepare case.int (for the TiC example) with:
+tic             #Title
+ -1.000   0.00250   1.200  0.003     #Emin, DE, Emax, Gauss-Broad
+     8                               #Number of DOS
+     0 1 total-DOS
+     1 1 tot-Ti
+     1 4 d-Ti
+     1 5 d-eg-Ti
+     1 6 d-t2g-Ti
+     2 1 tot-C
+     2 2 s-C
+     2 3 p-C
+********************************
+EOF
+
+
+
+
+

@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# This script is for DOS normalization by shift energies on EF.
+
+if [ -z "$1" ]; then
+    exit 1
+fi
+
+lines_num=""
+efermi=""
+string=""
+outfile=""
+calc_dir=`basename $PWD`
+
+#---> Header string generation
+header_string="Energy"
+num_dos=`grep "Number of DOS" $calc_dir.int | awk '{print $1}'`
+for ((i=1; i<=$num_dos; i++)); do
+    current_string=`tail -$num_dos $calc_dir.int | head -$i | tail -1 | awk '{print $3"_"$1}'`
+    header_string="$header_string $current_string"
+done
+echo "$header_string"
+
+if [ "$1" = "up" ]; then
+    updn="up"
+elif [ "$1" = "dn" ]; then
+    updn="dn"
+fi
+
+# Output file creation
+outfile=$calc_dir.dos1"$updn"_norm
+if [ -f "$outfile" ]; then
+    rm -f $outfile
+fi
+echo "$header_string
+Ry" > $outfile
+
+# DOS shift
+efermi=`grep "#EF" $calc_dir.dos1"$updn" | awk '{print $2}'`
+lines_num=`cat $calc_dir.dos1"$updn" | wc -l`
+echo "=== efermi = $efermi"
+exit 999
+
+if [ "$1" = "up" ]; then
+    for ((i=4; i<=$lines_num; i++))
+    do
+        current_line=`head -$i $calc_dir.dos1"$updn" | tail -1`
+        energy=`echo "$current_line" | awk '{print $1}'`
+        energy_ef=`echo "scale=8; $energy - $efermi" | bc | cut -c -8`
+        string=`echo "$current_line" | awk '{printf "%7.5f %7.8f %7.8f %7.8f %7.8f %7.8f %7.8f %7.8f\n", $1-'$efermi', $2, $3, $4, $5, $6, $7, $8}'`
+	echo "$string" >> $outfile
+    done
+elif [ "$1" = "dn" ]; then    
+    for ((i=4; i<=$lines_num; i++))
+    do
+        current_line=`head -$i $calc_dir.dos1"$updn" | tail -1`
+        energy=`echo "$current_line" | awk '{print $1}'`
+        energy_ef=`echo "scale=8; $energy - $efermi" | bc | cut -c -8`
+        string=`echo "$current_line" | awk '{printf "%7.5f %7.8f %7.8f %7.8f %7.8f %7.8f %7.8f %7.8f\n", $1-'$efermi', -$2, -$3, -$4, -$5, -$6, -$7, -$8}'`
+        echo "$string" >> $outfile
+    done
+fi
+
+exit 0
+

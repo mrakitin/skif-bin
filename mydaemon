@@ -1,0 +1,62 @@
+#!/bin/bash
+
+
+# Description: The script is for monitoring calculations on nodes
+# Author     : Maxim Rakitin
+# Email      : rms85@physics.susu.ac.ru
+# Date       : 2010-10-13 (Wed)
+# Version    : 1.0
+
+myqueue_dir=$HOME/myqueue/
+outfile=$myqueue_dir/$(hostname)
+qstat_file=$myqueue_dir/qstat.file
+
+sec="10"
+
+while [ 1 = 1 ]; do
+    mom=""
+    process=""
+    path=""
+    mymom=""
+
+    # MOM process of Torque
+    mom=$(ps ax -o args | grep -i "/var/spool/torque/mom_priv/jobs" | grep -v grep | awk '{print $NF}' | sed 's/\/var\/spool\/torque\/mom_priv\/jobs\///g; s/\.localdomain\.SC//g'; wait)
+
+    # WIEN2k process
+    process=$(ps ax -o pid,ppid,cputime,pcpu,pmem,vsz,args | awk '$4>=2.0 {print $7}' | head -1; wait)
+
+    # Path of WIEN2k calculation
+    path=$(lsof +c 30 | grep $USER | grep "/calc/" | awk '{print $1","$2","$9}' | grep "x,"| sed 's|/panfs/panasas||g' | sort | uniq | head -1 | cut -d, -f3; wait)
+
+    #---> Print the information to outfile
+    echo "\
+timestamp = $(date +%F" "%H:%M:%S)
+mom       = $mom
+hostname  = $(hostname)
+pid       = $$
+user      = $USER
+process   = $process
+path      = $path" > $outfile
+
+    #---> Process the case when MOM-process was killed or MOM-process belongs to another user.
+    #     Then remove outfile and exit
+    if [ ! -z "$mom" ]; then
+	mymom=$(cat $qstat_file | grep "$mom")
+    fi
+
+echo '
+    if [ -z "$mom" -o -z "$mymom" ]; then
+	#m -f $outfile
+	echo "================================
+ERROR:
+mom   = $mom
+mymom = $mymom" >> $outfile
+	mv $outfile $outfile.stop
+	exit 2
+    fi
+' > /dev/null
+
+    sleep $sec
+done
+
+exit 0

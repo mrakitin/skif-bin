@@ -1,0 +1,115 @@
+REMARK  atoms as in Fe54.pdb
+REMARK< i5><  > X     <  >    <x f8.3><y f8.3><z f8.3><f6.2><f6.3>
+ATOM    14  Fe  Fe     1       3.337   3.337   3.337  0.000 0.001
+ATOM    17  Fe  Fe     1       3.337   6.174   3.337  0.000 0.001
+ATOM    32  Fe  Fe     1       4.756   4.756   1.918  0.000 0.001
+ATOM    41  Fe  Fe     1       4.756   4.756   4.756  0.000 0.001
+
+#!rasmol -rsm file
+# Creator: RasTop Version 2.1.0
+zap
+set connect on
+load pdb inline
+set title Fe54_small
+
+# Colour details
+background [0,0,0]
+set backfade off
+set headlight [-79,17,-58]
+set ambient 40
+set specular on
+set specpower 30
+set shadepower 50
+set depthcue off
+set shadow off
+stereo off
+
+# Transformation
+reset
+rotate molecule
+set picking ident
+set worlddepth 5108
+# zoom 506.25
+scale 4.04
+position x 0.000 y -0.000 z -0.000
+
+# Rendering
+colour axes [255,255,255]
+set axes off
+set boundingbox on
+set unitcell off
+set bondmode and
+dots off
+
+# Avoid Colour Problems!
+select all
+colour bonds none
+colour backbone none
+colour hbonds none
+colour ssbonds none
+colour ribbons none
+colour white
+
+# Atoms
+colour atoms [153,204,0]
+spacefill 50
+set shadow off
+
+# Bonds
+wireframe off
+
+# Ribbons
+ribbons off
+
+# Backbone
+backbone off
+
+# Labels
+labels off
+colour labels none
+set fontsize 8
+select (atomno>=14) and (atomno<=41)
+label "%e%i"
+# Monitors
+set monitors off
+monitor 32 41
+monitor 17 41
+monitor 17 32
+monitor 14 41
+monitor 14 32
+monitor 14 17
+
+# ssbonds
+select all
+ssbonds off
+
+# hbonds
+hbonds off
+
+# Dots
+set solvent false
+set radius 0
+set dots 1
+dots off
+
+# AtomSets
+# no sets
+
+select all
+
+# World Transformation
+rotate world
+centre origin
+set axes world off
+rotate world x 168.20
+rotate world y 17.72
+rotate world z -175.66
+position world x 0.000 y -0.000
+reset slab
+slab off
+reset depth
+depth off
+centre origin
+molecule 1
+
+exit

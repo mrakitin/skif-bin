@@ -1,0 +1,49 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo -e "\
+  WARNING!!! Specify job id as the first argument.
+  Exiting..."
+    exit 1
+fi
+
+source $HOME/bin/skif-bin/.config/$(hostname | cut -d. -f1).nodes
+
+jobid=$1
+if [ -z "$(qstat -a | grep "\.$hostname" | grep "$jobid")" ]; then
+    echo -e "\
+  WARNING!!! Specified job id isn't correct.
+  Exiting..."
+    exit 2
+fi
+
+machines=.machines
+
+
+nodes_list=$(qstat -a -n -1 | grep "$jobid" | awk '{print $NF}' | sed 's/+/\n/g' | cut -d/ -f1 | sort)
+uniq_nodes_list=$(echo "${nodes_list}" | uniq)
+uniq_nodes_num=$(echo "${uniq_nodes_list}" | wc -l)
+kpar_block=""
+for ((i=1; i<=${uniq_nodes_num}; i++)); do
+    unset kpar_node
+    kpar_node=$(echo "${uniq_nodes_list}" | head -$i | tail -1)
+    kpar_nodes=$(echo $(echo "${nodes_list}" | grep "${kpar_node}"))
+    if [ ! -z "${kpar_block}" ]; then
+        kpar_block="${kpar_block}
+1:${kpar_nodes}"
+    else
+        kpar_block="1:${kpar_nodes}"
+    fi
+done
+
+machines_var="\
+lapw0:$(echo $(echo "${nodes_list}" | head -${cores_per_node}))
+${kpar_block}
+granularity:1
+extrafine:1"
+
+echo "${machines_var}" > $machines
+
+
+exit 0
+

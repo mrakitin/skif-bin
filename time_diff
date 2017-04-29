@@ -1,0 +1,41 @@
+#!/bin/bash
+
+if [ -z :log ]; then
+  echo "  Please select correct directory. There is no :log file"
+  exit 1
+fi
+
+lapw1dn_last=`grep lapw1 :log | tail -1 | grep "\-dn"`
+if [ ! -z "$lapw1dn_last" ]; then
+  tail_num="1"
+else
+  tail_num="2"
+fi
+tail_num2=`expr $tail_num + 1`
+
+start_string=`grep lapw1 :log | tail -$tail_num2 | head -1`
+end_string=`grep lapw1 :log | tail -$tail_num | head -1`
+echo "Start string is       : $start_string"
+echo "End string is         : $end_string"
+
+start_time=`echo $start_string | cut -d\> -f1`
+end_time=`echo $end_string | cut -d\> -f1`
+
+stime_sec1970=`date --date="$start_time" +%s`
+etime_sec1970=`date --date="$end_time" +%s`
+
+echo "Start time in seconds : $stime_sec1970"
+echo "End time in seconds   : $etime_sec1970"
+difference=`expr $etime_sec1970 - $stime_sec1970`
+echo "Difference (seconds)  : $difference"
+echo "Difference (minutes)  : $(printf %1.1f $(echo $difference | awk '{print $1/60}'))"
+
+if [ -f .machine1 ]; then
+  nodes=`cat .machine1 | wc -l`
+  nodes=`expr $nodes / 8`
+else
+  nodes="---"
+fi
+echo "Nodes                 : $nodes"
+
+exit 0

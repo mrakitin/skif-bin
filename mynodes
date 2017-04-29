@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Description: The script outputs private nodes information
+# Author     : Maxim Rakitin
+# Email      : rms85@physics.susu.ac.ru
+# Date       : 2010-10-05
+# Version    : 1.0
+
+qstat_list=$(qstat -a -n)
+nodes_list=$(echo "$(echo "$qstat_list" | grep node)" | sed 's/[ \t]//g' | grep "^node" | awk -F/ '{print $1}' | sort | uniq)
+nodes_num=$(echo "$nodes_list" | wc -l | sed 's/ //g')
+info=""
+
+for node in $nodes_list; do
+    taskid=""
+    duration=""
+    interval=""
+    process=""
+    path=""
+    string=""
+
+    taskid=$(echo "$qstat_list" | grep $node -B1 | head -1 | awk '{print $1}' | awk -F. '{print $1}')
+    duration=$(echo "$qstat_list" | grep $node -B1 | head -1 | awk '{print $11"/"$9}')
+    interval=$(echo "$duration" | awk -F"/" '{print $2-$1}')
+    process=$(ssh $node ps ax -o pid,ppid,cputime,pcpu,pmem,vsz,args | awk '$4>=2.0 {print $7}' | head -1)
+
+
+    # Getting path takes too much time, so it's excluded from the list of parameters
+    path=$(ssh $node lsof +c 30 \| grep $USER \| grep "/calc/" | awk '{print $1","$2","$9}' | grep "x,"| sed 's|/panfs/panasas||g' | sort | uniq | head -1 | cut -d, -f3)
+    if [ -z "$process" ]; then
+	string="$taskid : $node : status=free : $duration : $interval"
+    else
+	string="$taskid : $node : status=busy : $duration : $interval :$process : $path"
+    fi
+
+    # Collect information about all nodes
+    if [ -z "$info" ]; then
+	info="$string"
+    else
+	info="$info
+$string"
+    fi
+done
+
+optimal_node=$(echo "$info" | grep free | sort -gnk 9 | tail -1)
+
+echo "$info"
+echo -e "\nOptimal node:\n$optimal_node"
+exit 0

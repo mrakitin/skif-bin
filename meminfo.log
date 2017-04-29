@@ -1,0 +1,245 @@
+========= Fri Sep 14 17:15:15 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1513748   47903056          0      25440     207880
+-/+ buffers/cache:    1280428   48136376
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+========= Fri Sep 14 17:15:16 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1514492   47902312          0      25440     207900
+-/+ buffers/cache:    1281152   48135652
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+========= Fri Sep 14 17:15:17 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1516028   47900776          0      25440     207900
+-/+ buffers/cache:    1282688   48134116
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+========= Fri Sep 14 17:15:18 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1516236   47900568          0      25440     207900
+-/+ buffers/cache:    1282896   48133908
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+========= Fri Sep 14 17:15:19 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1516864   47899940          0      25440     207904
+-/+ buffers/cache:    1283520   48133284
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+========= Fri Sep 14 17:15:21 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1517120   47899684          0      25448     207896
+-/+ buffers/cache:    1283776   48133028
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+
+========= Fri Sep 14 17:15:22 YEKT 2012 ==========
+Processes:
+
+
+Disk usage:
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1              73G  2.5G   67G   4% /
+tmpfs                  24G     0   24G   0% /dev/shm
+10.4.9.231@o2ib:/lustre1
+                       26T  6.9T   18T  29% /lustre
+
+Memory usage:
+             total       used       free     shared    buffers     cached
+Mem:      49416804    1517204   47899600          0      25448     207904
+-/+ buffers/cache:    1283852   48132952
+Swap:      1047544          0    1047544
+
+Ulimit stat:
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 385687
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 10000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) unlimited
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 1024
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+

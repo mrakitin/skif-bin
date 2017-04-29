@@ -1,0 +1,45 @@
+#!/bin/bash
+
+nodelist=""
+taskid=""
+for ((;;)) ; do
+  case $1 in
+  -a)
+    shift
+    nodelist=`nodes`
+    ;;
+  -t)
+    shift
+    taskid=$1
+    nodelist=`qstat -f -1 $taskid | grep exec_host | awk '{print $3}' | sed 's/+/\n/g' | cut -d/ -f1 | sort | uniq`
+    # echo "task_id = $taskid"
+    # echo "nodelist = $nodelist"
+    ;;
+  -m)
+    shift
+    if [ -f ".machine1" ]; then
+        nodelist=`cat .machine1 | sort | uniq`
+    else
+	break
+    fi
+    ;;
+  -r)
+    shift
+    nodelist=`qstat -f | grep exec_host | cut -d= -f2 | cut -d/ -f1 | sed 's/ //g'`
+  ;;
+  *)
+    break
+    ;;
+  esac
+done
+
+#nodelist="node-12-03"
+#printf "NODE\t%1sUSER\t%2sLOAD\t%2sMEM\t%1sTIME\t%5sNAME\n"
+for node in $nodelist ; do
+  v=$(ssh -q $node ps -eo user,pcpu,pmem,time,fname | awk '$2>=5.0 {printf "%2s\n", $1}' | sort | uniq)
+  num_users=`echo "$v" | wc -l | sed 's/ //g'`
+  if [ "$num_users" -gt 1 ]; then
+	echo "$node: "$v
+  fi
+done
+

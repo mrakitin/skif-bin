@@ -1,0 +1,14 @@
+#!/bin/bash
+
+source $HOME/bin/skif-bin/.config/$(hostname | cut -d. -f1).nodes
+if [ -z "$1" -o "$1" != "yes" ]; then
+    echo "  WARNING!!! Need to specify the first argument to 'yes'"
+    exit 1
+fi
+
+tasks_list=$(echo $(qstat -a | grep "\.$hostname" | cut -d. -f1))
+
+qdel ${tasks_list}
+
+exit 0
+

@@ -1,0 +1,374 @@
+#!/bin/bash
+
+############################# Help part #################################
+help ()
+{
+cat << EOF
+
+This script is for generating of html-reports with
+java toggle boxes for WIEN2k calculation results.
+
+Usage:
+------
+    $(basename $0) options
+
+OPTIONS:
+    -n report_name
+    --name report_name
+	Defines report name for header of the html-report.
+
+    -o file_name
+    --output file_name
+	Defines output file name.
+
+    -p path_to_calculation
+    --path path_to_calculation
+	Defines path to calculation directory for which html-report will be generated.
+
+    -s status
+    --status status
+	Defines what type of report will be generated. Possible walues: d/done, e/error, i/interrupt
+
+    -h
+    --help
+	Invokes help for the script.
+
+Author  : Maxim Rakitin (rms85@physics.susu.ac.ru)
+Version : 1.2
+Date    : 2010-11-12 (Fri)
+
+EOF
+
+exit 1
+}
+
+########################## Arguments processing #########################
+if [ -z "$1" ]; then
+    echo -e "
+  Incorrect options. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+    exit 2
+fi
+
+while [ "$#" -gt "0" ]; do
+    arg=$1
+    shift
+    case $arg in
+    	-n | --name) # Name of the output file
+	    if [ -z "$1" ]; then
+		echo -e "
+  Report name cannot be empty. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+		exit 3
+	    fi
+
+	    report_name=$1
+	    shift
+	;;
+
+    	-o | --output) # Name of the output file
+	    if [ -z "$1" ]; then
+		echo -e "
+  Output file name cannot be empty. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+		exit 4
+	    fi
+
+	    outfile=$1
+	    shift
+	;;
+	-p | --path) # Path to calculation directory to report
+	    num=0
+	    if [ -z "$1" ]; then
+		echo -e "
+  Path values cannot be empty. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+		exit 5
+	    fi
+	    
+	    while [ 1 ]; do
+		unset check_dir
+		check_dir=$(echo "$1" | grep "/")
+		if [ ! -z "${check_dir}" ]; then
+		    num=$(($num + 1))
+		    path[$num]=$1
+		    shift
+		else
+		    break
+		fi
+	    done
+	;;
+	-s | --status) # Status of the calculation (done, error, interrupt)
+	    if [ -z "$1" ]; then
+		echo -e "
+  Status value cannot be empty. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+		exit 6
+	    fi
+
+	    stat=$1
+	    shift
+	;;
+	-h | --help) # Invoke help
+	    help
+	;;
+	* ) # Other cases
+	    echo -e "
+  Incorrect options. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+	    exit 7
+	;;
+    esac
+done
+
+if [ -z "$outfile" -o -z "$stat" -o "${#path[@]}" -eq "0" ]; then
+    echo -e "
+  You haven't specified all necessary options. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+    exit 8
+fi
+
+case $stat in
+    "d" | "done") # Blue colors
+	color_a="99CCFF"
+	color_b="CCCCFF"
+    ;;
+    "e" | "error") # Red colors
+	color_a="FF6666"
+	color_b="FF6699"
+    ;;
+    "i" | "interrupt") # Yellow colors
+	color_a="FFFF66"
+	color_b="FFFF99"
+    ;;
+    * )
+	echo -e "
+  You specified incorrect option for status. Try '$(basename $0) -h' for more information.
+  Exiting...\n"
+	exit 9
+    ;;
+esac
+
+echo -e "\nReport will be generated for the following directories ($num):\n"
+for ((i=1; i<=$num; i++)); do
+    echo -e "${path[$i]}"
+done
+
+########################## Print HTML header ############################
+rm -f $outfile
+cat << EOF >> $outfile
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>${report_name}</title>
+
+    <script type="text/javascript">
+	var collapse_section_id = "quotes";
+	var title_tag = "H2";
+	var item_tag = "DIV";
+	var text_decotation = "none";
+	var highlight_text = ":";
+	var normal_text = "...";
+
+	function toggle(e){
+	    var el = window.event ? window.event.srcElement : e.currentTarget;
+	    var collapse_item = el.nextSibling;
+	    while (collapse_item.nodeType != 1) collapse_item = collapse_item.nextSibling; // workaround (whitespace)!
+	    curr_shown = collapse_item.style.display == "block";
+	    collapse_item.style.display = (curr_shown) ? "none" : "block";
+	    var title_text = el.firstChild;
+	    title_text.nodeValue = (curr_shown) ? title_text.nodeValue.replace(highlight_text, normal_text) : title_text.nodeValue.replace(normal_text, highlight_text);
+	}
+	function init(){
+	    if (document.getElementById && document.createTextNode){
+    		var collapse_section = document.getElementById(collapse_section_id);
+		var collapse_title = collapse_item = null;
+    		for (var i = 0; ((collapse_title = collapse_section.getElementsByTagName(title_tag).item(i)) && (collapse_item = collapse_section.getElementsByTagName(item_tag).item(i))); i++){
+        	    collapse_title.style.textDecoration = text_decotation;
+            	    collapse_title.style.cursor = window.event ? "hand" : "pointer";
+            	    if (collapse_title.addEventListener) collapse_title.addEventListener("click", toggle, false);
+	    	    else if (collapse_title.attachEvent) collapse_title.attachEvent("onclick", toggle);
+    	    	    collapse_title.firstChild.nodeValue = collapse_title.firstChild.nodeValue + normal_text;
+        	    collapse_item.style.display = "none";
+        	}
+	    }
+	}
+
+	var root = window.addEventListener || window.attachEvent ? window : document.addEventListener ? document : null;
+	if (root){
+	    if (root.addEventListener) root.addEventListener("load", init, false);
+	    else if (root.attachEvent) root.attachEvent("onload", init);
+	}
+    </script>
+	<style type="text/css">
+	 .calc-stat {
+	  width: auto;
+	  min-width: 1000px;
+	  max-width: 1220px;
+	  text-decoration: none;
+	  cursor: auto;
+	  margin: 10px 10px 30px 0px;
+         }
+         .calc-header-a, .calc-header-b {
+          width: auto;
+	  min-width: 1000px;
+	  max-width: 1220px;
+	  text-decoration: none;
+	  cursor: pointer;
+	  margin: 0px 10px 10px 0px;
+	  border: 1px dotted black;
+         }
+         .calc-header-a {
+	  background-color: #C8C8C8;
+         }
+         .calc-header-b {
+	  background-color: #E8E8E8;
+         }
+	 .calc-form-a, .calc-form-b {
+	  width: auto;
+	  min-width: 980px;
+	  max-width: 1200px;
+	  margin: -10px 10px 10px 0px;
+	  padding: 10px 10px 1px 10px;
+	  border: 1px dotted black;
+         }
+	 .calc-form-a {
+	  background-color: #${color_a};
+         }
+	 .calc-form-b {
+	  background-color: #${color_b};
+         }
+	 .calc-textarea {
+	  padding: 0px 0px 0px 10px;
+	  border: 1px dotted black;
+	  background-color: #F0F0F0;
+	 }
+	 .calc-files {
+	  color: #0000CC;
+	 }
+	</style>
+
+  </head>
+EOF
+
+########################## Print main header ############################
+cat << EOF >> $outfile
+  <body>
+	<div> <!-- Main header -->
+		<h1 class="calc-stat">${report_name}</h1>
+	</div>
+	
+	<div id="quotes"> <!-- Insert calc cases here -->
+EOF
+
+########################## Print all partial results ####################
+init_dir=$PWD
+for ((i=1; i<=$num; i++)); do
+    unset file a j rows command rep_file qres_column qres_size header_block values_block
+    file=$(basename ${path[$i]})
+    cd ${path[$i]}
+
+    if [ "$(echo "$i%2" | bc)" -eq "1" ]; then
+	a="a"
+    else
+        a="b"
+    fi
+
+    j=0
+
+    job_out=$(ls -t1 job/*.out | head -1)
+    job_err=$(ls -t1 job/*.err | head -1)
+    for rep_file in $file.dayfile $job_out $job_err ":log"; do
+	j=$(($j + 1))
+	if [ -f "${path[$i]}/${rep_file}" ]; then
+	    command[$j]="$(cat ${path[$i]}/${rep_file} | sed 's/\&/\&amp\;/g')"
+	    rows[$j]="15"
+	else
+	    command[$j]=""
+	    rows[$j]="3"
+        fi
+    done
+
+    #---> Find all necessary information from 'qres -c -f' output
+    qres_column=$(qres -c -f)
+    qres_size=$(echo "${qres_column}" | grep . | wc -l)
+    for ((j=1; j<=${qres_size}; j++)); do
+	unset hitem value
+
+	# Generate header part in HTML format (table)
+	hitem="\
+					<td align=\"center\"><b><code>$(echo "${qres_column}" | head -$j | tail -1 | cut -d: -f1 | sed 's/^ *//g; s/ *$//g; s/  / /g')</code></b></td>"
+	if [ ! -z "${header_block}" ]; then
+            header_block="${header_block}
+$hitem"
+	else
+            header_block="$hitem"
+	fi
+
+	# Generate values part in HTML format (table)
+        value="\
+                                        <td align=\"center\"><code>$(echo "${qres_column}" | head -$j | tail -1 | cut -d: -f2- | sed 's/^ *//g; s/ *$//g; s/  / /g')</code></td>"
+        if [ ! -z "${values_block}" ]; then
+            values_block="${values_block}
+$value"
+        else
+            values_block="$value"
+        fi
+
+    done
+
+    cat << EOF >> $outfile		
+		<!-- $i - ${path[$i]} start -->
+		<h2 class="calc-header-${a}"><code>${path[$i]}</code></h2>
+		<div style="display: none;">
+		<form action="" name="calc_results_${i}" id="calc_results_${i}" class="calc-form-${a}">
+			<!-- Define table with 'qres -c -f' information -->
+			<table width="100%" border="1" cellpadding="0" cellspacing="0">
+				<tr>
+${header_block}
+				</tr>
+				<tr>
+${values_block}
+				</tr>
+			</table>
+
+			<!-- Place dayfile content in the text area -->
+			<p class="calc-files"><b><code>${path[$i]}/$file.dayfile:</code></b><br>
+			<textarea class="calc-textarea" name="dayfile content" readonly cols="120" rows="${rows[1]}">
+${command[1]}
+			</textarea></p>
+			
+			<!-- Place .out file content in the text area -->
+			<p class="calc-files"><b><code>${path[$i]}/${job_out}:</code></b><br>
+			<textarea class="calc-textarea" name=".out file content" readonly cols="120" rows="${rows[2]}">
+${command[2]}
+			</textarea></p>
+			
+			<!-- Place .err file content in the text area -->
+			<p class="calc-files"><b><code>${path[$i]}/${job_err}:</code></b><br>
+			<textarea class="calc-textarea" name=".err file content" readonly cols="120" rows="${rows[3]}">
+${command[3]}
+			</textarea></p>
+
+			<!-- Place :log file content in the text area -->
+			<p class="calc-files"><b><code>${path[$i]}/:log:</code></b><br>
+			<textarea class="calc-textarea" name=":log file content" readonly cols="120" rows="${rows[4]}">
+${command[4]}
+			</textarea></p>
+		</form>
+		</div> <!-- $i - ${path[$i]} end -->
+
+EOF
+    cd ${init_dir}
+done
+
+########################## Print end of the html file ###################
+cat << EOF >> $outfile
+	</div> <!-- quotes -->
+  </body>
+</html>
+EOF
+
+
+exit 0

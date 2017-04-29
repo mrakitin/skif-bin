@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# This script is for quick send of files to the recipient(s)
+# Author: Maxim Rakitin
+# Email : rms85@physics.susu.ac.ru
+# 2009-07-06; updated on 2010-09-30
+
+. $HOME/bin/skif-bin/.config/MAILBOX.$USER
+
+if [ -z "$1" ]; then
+    echo "\
+    Input file for sending isn't specified
+    Usage : `basename $0` file"
+    exit 1
+fi
+
+send_file=$1
+if [ ! -f "$send_file" ]; then
+    echo "	There is no such file: $send_file"
+    exit 2
+fi
+
+echo "File $send_file has been sent" | mail -s "$SKIF_NAME $send_file" -a $send_file -r $FROM_ADDRESS $TO_ADDRESS
+
+echo "	File $send_file has been sent"
+
+exit 0
+

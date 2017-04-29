@@ -1,0 +1,3 @@
+#!/bin/bash
+
+date --date="2010-03-26 +20 days + 127 day - 30 day"

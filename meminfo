@@ -1,0 +1,25 @@
+#!/bin/bash
+
+log=$PWD/meminfo.log
+while [ 1 ]; do
+    cat << EOF >> $log
+========= $(date) ==========
+Processes:
+$(ps -eo user,pcpu,pmem,time,fname | awk '$2>=5.0 {printf "\t%2s %8s %6s %10s %10s\n", $1, $2, $3, $4, $5}')
+
+Disk usage:
+$(df -h)
+
+Memory usage:
+$(free)
+
+Ulimit stat:
+$(ulimit -a)
+
+EOF
+    sleep 1
+done
+
+
+exit 0
+

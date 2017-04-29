@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Purpose: the scrips is to get statistics on Torque usage by users
+# Author : Maxim Rakitin
+# Email  : rms85@physics.susu.ac.ru
+# Version: 1.0
+# Date   : 2010-09-20 (Mon)
+
+source $HOME/bin/skif-bin/.config/$(hostname | cut -d. -f1).nodes
+
+for i in `showq | grep "\.$hostname" | cut -d\| -f3 | awk '{print $1}' | cut -d@ -f1 | sort | uniq`; do
+    run_num=`showq | grep $i | grep -v "None" | wc -l`
+    total_num=`showq | grep $i | wc -l`
+    
+    printf "%20s %10s %10s %4s %5s\n" $i "--->" $run_num "/" $total_num
+done
+
+
+exit 0

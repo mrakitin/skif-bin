@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# This script is for automatic DOS generating
+# Author: Maxim Rakitin
+# Email : rms85@physics.susu.ac.ru
+# Date  : 2009-11-20
+
+# Parameters
+list=$@
+gauss_broad=`grep Gauss $(which configure_int) | grep int | awk '{print $6}'`
+dos_dir=$PWD/dos_dir_"$gauss_broad"
+atom_type=""
+case_name=`basename $PWD`
+struct_name="$case_name.struct"
+
+# Code
+if [ -d "$dos_dir" ]; then
+    rm -rf $dos_dir
+fi
+mkdir $dos_dir
+cp $struct_name $dos_dir
+
+for i in $list
+do
+    atom_type=`grep "ATOM " $struct_name -A2 | grep -e "[- ]$i" -A2 | tail -1 | awk '{print $1}'`
+    i_name=$(printf "%02.f\n" $i)
+
+    atom_subdir=atom_"$i_name"_"$atom_type"
+    atom_dir="$dos_dir"/$atom_subdir
+    mkdir $atom_dir 
+    rm -f *.int
+    configure_int -b total $i tot,s,p,d,d-eg,d-t2g,f end 1>/dev/null 2>&1
+    cp $case_name.int $dos_dir/$atom_subdir.int
+    x tetra -up
+    x tetra -dn
+    dos_norm up
+    dos_norm dn
+#    mv *.dos1ev[ud]* $atom_dir
+#    mv *.dos1[ud]*_norm $atom_dir
+    for state in up dn; do
+	mv `basename $PWD`.dos1"$state"_norm $atom_dir/$atom_subdir.$state
+    done
+done
+
+exit
+

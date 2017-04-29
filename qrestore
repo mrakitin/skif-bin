@@ -1,0 +1,22 @@
+#!/bin/bash
+
+restore_file=$1
+
+if [ ! -f "$restore_file" ]; then
+    echo "WARNING! Incorrect file to restore"
+    exit 1
+fi
+
+init_dir=$PWD
+restore_list=`cat $restore_file`
+restore_num=`echo "$restore_list" | wc -l`
+
+for ((i=1; i<=$restore_num; i++)); do
+    current_restore=`echo "$restore_list" | head -$i | tail -1`
+    #echo "=== $current_restore"
+    cd $current_restore
+    echo $PWD
+    ls -laF $current_restore/.fin*
+    qrerun -s
+    cd $init_dir
+done

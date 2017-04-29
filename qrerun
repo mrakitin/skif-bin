@@ -1,0 +1,45 @@
+#!/bin/bash
+
+if [ -z "$1" -o "$1" == "-s" -o "$1" == "-r" ] ; then
+    num=`find $PWD -name .finished_* | wc -l`
+    script_dir=`echo $PWD`
+    for ((i=1; i<=$num; i++))
+      do
+      cd $script_dir
+      calc_path=`find $PWD -name .finished_* | sort | head -$i | tail -1`
+
+      # Check .archive directory. We don't need to use it.
+      archivedir_check=`echo "$calc_path" | grep "/.archive"`
+      if [ ! -z "$archivedir_check" ]; then
+	continue
+      fi
+    
+      calc_dir=`dirname $calc_path`
+      struct_name=`basename $calc_dir`
+      if [ "$1" == "-r" -o "$1" == "-s" ] ; then
+	  cd $calc_dir
+	  rm -rf .finished_*
+	  if [ "$1" == "-s"  ] ; then
+	      cd job
+              if [ ! -z "$2" ]; then
+	    	    sed -i "s/scratch/$2/g" $struct_name.mpi
+	      fi
+	      sed -i "s/^init_lapw/#init_lapw/g" $struct_name.mpi
+	      rm -rf .out .err
+	      qsub ./$struct_name.mpi
+	  fi
+      else
+	  echo "$calc_path"
+      fi
+    done
+elif [ ! -z "$1" -a  "$1" != "-s" -a "$1" != "-r"  ] ; then
+    echo -e "Usage:
+\tTo display .finished_error path                 : qrerun
+\tTo remove .finished_error files                 : qrerun -r
+\tTo restart all tasks in current path            : qrerun -s
+\tTo restart all tasks and change scratch dir run : qrerun -s scratch_dir_name
+\tTo help run                                     : qrerun -h"
+fi
+
+
+exit 0

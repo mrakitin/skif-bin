@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# Clean unnecessary files before restart of WIEN2k calculation
+if [ "$PWD" = "$HOME" ]; then
+    echo "You are in $HOME directory. Exiting..."
+    exit 1
+fi
+
+
+file=$(basename $PWD)
+dot_list=$(ls -1 .[a-zA-Z0-9]* 2>/dev/null | grep -v "\.finish")
+
+files_list="\
+${dot_list} 
+$file.broyd*
+$file.clmvalup_*
+$file.clmvaldn_*
+$file.energy_*
+$file.energydn_*
+$file.energyup_*
+$file.finM*
+$file.hess*
+$file.inM*
+$file.klist_*
+$file.output[012]*
+$file.scf[12]*
+$file.tmp*
+$file.tst*
+$file.test*
+$file.weigh*
+fort*
+head.diff
+*.def
+*.error
+script
+new*
+old*
+scratch
+"
+
+files_list=$(echo "${files_list}" | grep . | sort)
+files_line=$(echo ${files_list})
+du_list=$(du -h -c ${files_line} 2>/dev/null)
+
+if [ -z "$1" ]; then
+    echo "  The following files will be deleted:
+${du_list}
+
+  Use '-d' to delete them"
+fi
+
+if [ "$1" = "-d" ]; then
+    rm -f -v ${files_line}
+    rm -rfv scratch
+fi
+
+
+exit 0
+

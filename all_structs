@@ -1,0 +1,30 @@
+#!/bin/bash
+
+idir=$HOME/calc
+rep_dir=$HOME/qrep
+
+if [ -z "$1" ]; then
+    date_stamp=$(date "+%F_%H-%M-%S")
+else
+    date_stamp=$1
+fi
+
+zip_file=${rep_dir}/structs_${date_stamp}.zip
+zip_log=${rep_dir}/structs_${date_stamp}.log
+zip_err=${rep_dir}/structs_${date_stamp}.err
+
+structs_list=$(find $idir -name "*.struct*")
+#structs_num=$(echo "${structs_list}" | wc -l)
+
+#---> Slow version: zip archive is opened and closed for each struct file, so too many IO's.
+#for ((i=1; i<=${structs_num}; i++)); do
+#    current_struct=$(echo "${structs_list}" | head -$i | tail -1)
+#    zip -ry9 "${zip_file}" "${current_struct}" >> ${zip_log} 2>> ${zip_err}
+#done
+
+#---> Fast version: zip archive is opened and closed only once.
+echo "${structs_list}" | zip -ry9 "${zip_file}" -@ >>${zip_log} 2>>${zip_err}
+
+
+exit 0
+

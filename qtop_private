@@ -1,0 +1,38 @@
+#!/bin/bash
+
+exec_dir=`dirname $0`
+machines_file=$1
+if [ -z "$machines_file" ]; then
+    if [ ! -f "$exec_dir/private_nodes" ]; then
+        echo "  File of private nodes doesn't exist: $exec_dir/private_nodes"
+        exit 1
+    fi
+    nodelist=`cat "$exec_dir/private_nodes"`
+else
+    if [ ! -f "$machines_file" ]; then
+        echo "  Machines file doesn't exist: $machines_file"
+        exit 2
+    fi
+    nodelist=`cat "$machines_file" | sort | uniq`
+fi
+
+taskid=""
+
+printf "NODE\t%1sUSER\t%2sLOAD\t%2sMEM\t%1sTIME\t%5sNAME\n"
+
+for node in $nodelist ; do
+  echo -e "$node"
+  users_list=$(ssh -q $node ps -eo user,pcpu,pmem,time,fname | awk '$2>=5.0 {printf "%2s\n", $1}' | sort | uniq)
+  for user in `echo $users_list`; do
+#  user=$(ssh -q $node ps -eo user,pcpu,pmem,time,fname | awk '$2>=5.0 {printf "%2s\n", $1}' | sort | uniq)
+    v=$(ssh $node ps -eo user,pcpu,pmem,time,fname | awk '$2>=2.0 {printf "\t%2s %8s %6s %10s %10s\n", $1, $2, $3, $4, $5}' | grep $user)
+    if [ "$user" = $USER ]; then
+      path=$(ssh $node lsof +c 30 \| grep $USER \| grep "/calc/" | awk '{print $1","$2","$9}' | grep "x,"| sed 's|/panfs/panasas||g' | sort | uniq | head -1 | cut -d, -f3)
+      # path=$(ssh $user@$node lsof | grep $user | grep calc | grep runsp | awk '{print $9}')
+      echo -e "$path\n$v"
+    else
+      echo -e "$v"
+    fi
+  done
+done
+

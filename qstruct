@@ -1,0 +1,367 @@
+#!/bin/bash
+
+calc_dir=`basename $PWD`
+rsm_file="$calc_dir.rsm"
+atom_num=`grep "ATOM  " *.struct | wc -l`
+alat_au=`head -10 *.struct | head -4 | tail -1 | awk '{print $1}'`
+au_2_ang="0.529177"
+
+echo "REMARK  atoms as in       $calc_dir.pdb
+REMARK< i5><  > X     <  >    <x f8.3><y f8.3><z f8.3><f6.2><f6.3>" >$rsm_file
+
+for ((i=1; i<=$atom_num; i++))
+do
+  current_atom=`grep "ATOM  " *.struct | head -$i | tail -1`
+
+  atom_x=`echo $current_atom | awk '{print $3}' | cut -d= -f2`
+  atom_y=`echo $current_atom | awk '{print $4}' | cut -d= -f2`
+  atom_z=`echo $current_atom | awk '{print $5}' | cut -d= -f2`
+
+  ang_x=`echo "scale=8; $atom_x*$alat_au*$au_2_ang" | bc | cut -c -5`
+  if [ "$ang_x" == 0 ] ; then
+      ang_x=0.000
+  fi
+  
+  ang_y=`echo "scale=8; $atom_y*$alat_au*$au_2_ang" | bc | cut -c -5`
+  if [ "$ang_y" == 0 ] ; then
+      ang_y=0.000
+  fi
+  
+  ang_z=`echo "scale=8; $atom_z*$alat_au*$au_2_ang" | bc | cut -c -5`
+  if [ "$ang_z" == 0 ] ; then
+      ang_z=0.000
+  fi
+  
+  if [ "$i" -lt 10 ] ; then
+      i_temp="0$i"
+  else
+      i_temp="$i"
+  fi
+  
+  echo "ATOM    $i_temp  IS $i_temp      1       $ang_x   $ang_y   $ang_z  0.000 0.001" >>$rsm_file
+
+done
+
+is_octa=`grep "ATOM  13" *.struct | awk '{print $3}'`
+
+if [ "$is_octa" == "X=0.50000000" ] ; then
+echo "
+#!rasmol -rsm file
+# Creator: RasTop Version 2.1.0
+zap
+set connect on
+load pdb inline
+set title $calc_dir
+
+# Colour details
+background [0,0,0]
+set backfade off
+set headlight [-79,17,-58]
+set ambient 40
+set specular on
+set specpower 30
+set shadepower 50
+set depthcue off
+set shadow off
+stereo off
+
+# Transformation
+reset
+rotate molecule
+set picking ident
+set worlddepth 5108
+# zoom 182.43
+scale 11.20
+position x 0.000 y 0.000 z 0.000
+
+# Rendering
+colour axes [255,255,255]
+set axes off
+set boundingbox on
+set unitcell off
+set bondmode and
+dots off
+
+# Avoid Colour Problems!
+select all
+colour bonds none
+colour backbone none
+colour hbonds none
+colour ssbonds none
+colour ribbons none
+colour white
+
+# Atoms
+select (atomno>=1) and (atomno<=13)
+colour atoms [100,100,100]
+select (atomno>=14) and (atomno<=15)
+colour atoms [255,128,0]
+select atomno=16
+colour atoms [100,100,100]
+select (atomno>=17) and (atomno<=18)
+colour atoms [255,128,0]
+select (atomno>=19) and (atomno<=31)
+colour atoms [100,100,100]
+select atomno=32
+colour atoms [153,204,0]
+select (atomno>=33) and (atomno<=40)
+colour atoms [100,100,100]
+select atomno=41
+colour atoms [153,204,0]
+select (atomno>=42) and (atomno<=54)
+colour atoms [100,100,100]
+select atomno=55
+colour atoms [255,255,255]
+select all
+spacefill 50
+set shadow off
+
+# Bonds
+wireframe off
+
+# Ribbons
+ribbons off
+
+# Backbone
+backbone off
+
+# Labels
+labels off
+colour labels none
+set fontsize 8
+select atomno=4
+label "%e%i%A"
+select (atomno>=14) and (atomno<=15)
+label "%e%i%A"
+select (atomno>=17) and (atomno<=18)
+label "%e%i%A"
+select atomno=32
+label "%e%i%A"
+select atomno=41
+label "%e%i%A"
+
+# Monitors
+set monitors on
+monitor 55 17
+monitor 15 55
+monitor 41 55
+monitor 55 32
+monitor 55 14
+monitor 18 55
+monitor 17 14
+monitor 14 15
+monitor 17 18
+monitor 18 15
+monitor 14 32
+monitor 17 32
+monitor 15 32
+monitor 32 18
+monitor 41 17
+monitor 41 14
+monitor 41 15
+monitor 41 18
+
+# ssbonds
+select all
+ssbonds off
+
+# hbonds
+hbonds off
+
+# Dots
+set solvent false
+set radius 0
+set dots 1
+dots off
+
+# AtomSets
+# no sets
+
+select all
+
+# World Transformation
+rotate world
+centre origin
+set axes world on
+colour world axes [255,255,255]
+rotate world x 141.48
+rotate world y -79.00
+rotate world z 49.45
+# translate world x 0.11
+# translate world y -0.11
+position world x 0.012 y -0.012
+reset slab
+slab off
+reset depth
+depth off
+centre origin
+molecule 1
+
+exit
+" >> $rsm_file
+
+elif [ "$is_octa" == "X=0.41666666" ] ; then
+
+echo "#!rasmol -rsm file
+# Creator: RasTop Version 2.1.0
+zap
+set connect on
+load pdb inline
+set title $calc_dir
+
+# Colour details
+background [0,0,0]
+set backfade off
+set headlight [-79,17,-58]
+set ambient 40
+set specular on
+set specpower 30
+set shadepower 50
+set depthcue off
+set shadow off
+stereo off
+
+# Transformation
+reset
+rotate molecule
+set picking ident
+set worlddepth 5108
+# zoom 182.43
+scale 11.20
+position x 0.000 y -0.000 z -0.000
+
+# Rendering
+colour axes [255,255,255]
+set axes off
+set boundingbox on
+set unitcell off
+set bondmode and
+dots off
+
+# Avoid Colour Problems!
+select all
+colour bonds none
+colour backbone none
+colour hbonds none
+colour ssbonds none
+colour ribbons none
+colour white
+
+# Atoms
+select (atomno>=1) and (atomno<=13)
+colour atoms [100,100,100]
+select atomno=14
+colour atoms [153,204,0]
+select atomno=15
+colour atoms [255,128,0]
+select atomno=16
+colour atoms [100,100,100]
+select atomno=17
+colour atoms [153,204,0]
+select atomno=18
+colour atoms [255,128,0]
+select (atomno>=19) and (atomno<=30)
+colour atoms [100,100,100]
+select atomno=31
+colour atoms [255,128,0]
+select atomno=32
+colour atoms [153,204,0]
+select (atomno>=33) and (atomno<=39)
+colour atoms [100,100,100]
+select atomno=40
+colour atoms [255,128,0]
+select atomno=41
+colour atoms [153,204,0]
+select (atomno>=42) and (atomno<=54)
+colour atoms [100,100,100]
+select atomno=55
+colour atoms [255,255,255]
+select all
+spacefill 50
+set shadow off
+
+# Bonds
+wireframe off
+
+# Ribbons
+ribbons off
+
+# Backbone
+backbone off
+
+# Labels
+labels off
+colour labels none
+set fontsize 8
+select (atomno>=14) and (atomno<=15)
+label "%e%i%A"
+select (atomno>=17) and (atomno<=18)
+label "%e%i%A"
+select (atomno>=31) and (atomno<=32)
+label "%e%i%A"
+select (atomno>=40) and (atomno<=41)
+label "%e%i%A"
+
+# Monitors
+set monitors on
+monitor 55 14
+monitor 55 17
+monitor 55 32
+monitor 55 41
+monitor 32 17
+monitor 14 17
+monitor 32 41
+monitor 41 14
+monitor 14 32
+monitor 41 17
+monitor 40 31
+monitor 31 18
+monitor 15 18
+monitor 18 40
+monitor 15 31
+monitor 40 15
+
+# ssbonds
+select all
+ssbonds off
+
+# hbonds
+hbonds off
+
+# Dots
+set solvent false
+set radius 0
+set dots 1
+dots off
+
+# AtomSets
+# no sets
+
+select all
+
+# World Transformation
+rotate world
+centre origin
+set axes world on
+colour world axes [255,255,255]
+rotate world x -178.84
+rotate world y 1.08
+rotate world z 155.47
+# translate world x 0.11
+# translate world y -0.11
+position world x 0.012 y -0.012
+reset slab
+slab off
+reset depth
+depth off
+centre origin
+molecule 1
+
+exit
+" >> $rsm_file
+
+else
+    echo "This is not octa- or tetrapore. Select correct lattice"
+fi
+
+exit 0

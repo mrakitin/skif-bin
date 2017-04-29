@@ -1,0 +1,13 @@
+#!/bin/bash
+
+current_dir=$PWD
+calc_name=`basename $current_dir`
+
+qtl_files=`ls -1 *qtl* 2>/dev/null`
+if [ -z "$qtl_files" ] ; then
+    exit 0
+fi
+
+# mkdir DOS
+
+exit 0

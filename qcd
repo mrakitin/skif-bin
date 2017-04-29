@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Author : Maxim Rakitin rms85@physics.susu.ac.ru
+# Date   : 2009-10-13
+# Version: 1.0
+# Purpose: To navigate to calc directory directly by using PBS information
+# Usage  : source qcd 12345
+
+if [ ! -z "$1" ]; then
+    calc_dir=$(scontrol show job $1 | grep "WorkDir=" | cut -d= -f2 | sed 's/\/job$//g')
+    echo "--- Calc dir = $calc_dir"
+
+    cd $calc_dir
+else
+    cd .
+fi
+
+#exec sh -c 'cd $(echo ~/bin ); exec bash -l' --- from srg

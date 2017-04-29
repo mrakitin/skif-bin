@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# H atom coordinates:
+column_H=`grep "ATOM  55" *.struct_init | grep -o "[0-9].[0-9]\{8\}"`
+atom_H=`echo $column_H`
+atom_Hx=`echo $atom_H | awk '{print $1}'`
+atom_Hy=`echo $atom_H | awk '{print $2}'`
+atom_Hz=`echo $atom_H | awk '{print $3}'`
+
+atoms_num=`grep "ATOM  [ 0-9]" test.struct_init | wc -l`
+
+for((i=1; i<=$atoms_num; i++))
+  do
+  # current atom parsing
+  if [ "$i" -lt 10 ] ; then
+      column_current=`grep "ATOM   $i" *.struct_init | grep -o "[0-9].[0-9]\{8\}"`
+  else
+      column_current=`grep "ATOM  $i" *.struct_init | grep -o "[0-9].[0-9]\{8\}"`
+  fi
+  atom_current=`echo $column_current`
+  atom_x=`echo $atom_current | awk '{print $1}'`
+  atom_y=`echo $atom_current | awk '{print $2}'`
+  atom_z=`echo $atom_current | awk '{print $3}'`
+  
+  # Shift x position
+  trans_x=`echo "scale=10; $atom_x-$atom_Hx" | bc | cut -c -10`
+  test_neg=`echo "$trans_x" | grep "-"`
+  if [ ! -z "$test_neg" ] ; then
+      trans_x=`echo "scale=10; 1+($trans_x)" | bc | cut -c -10`
+  fi
+  if [ "$trans_x" == 0 ] ; then
+      trans_x=".00000000"
+  fi
+  
+  # Shift y position
+  trans_y=`echo "scale=10; $atom_y-$atom_Hy" | bc | cut -c -10`
+  test_neg=`echo "$trans_y" | grep "-"`
+  if [ ! -z "$test_neg" ] ; then
+      trans_y=`echo "scale=10; 1+($trans_y)" | bc | cut -c -10`
+  fi
+  if [ "$trans_y" == 0 ] ; then
+      trans_y=".00000000"
+  fi
+  
+  # Shift z position
+  trans_z=`echo "scale=10; $atom_z-$atom_Hz" | bc | cut -c -10`
+  test_neg=`echo "$trans_z" | grep "-"`
+  if [ ! -z "$test_neg" ] ; then
+      trans_z=`echo "scale=10; 1+($trans_z)" | bc | cut -c -10`
+  fi
+  if [ "$trans_z" == 0 ] ; then
+      trans_z=".00000000"
+  fi
+
+  echo -e "0$trans_x 0$trans_y 0$trans_z"
+done
+
+exit 0

@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  echo "  Please point old_name and new_name in format: `basename $0` old_name new_name"
+  exit 1
+fi
+
+old_name=$1
+new_name=$2
+
+for file in `ls $old_name.*`; do
+  echo "--- $file"
+  extension=`echo $file | sed "s/$old_name.//g"`
+  echo "          =$extension="
+
+  mv -v $old_name.$extension $new_name.$extension
+done
+
+exit 0

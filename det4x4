@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Description: this script is for calculation the determinant of a matrix of 4x4 size.
+# Author     : Maxim Rakitin (rms85@physics.susu.ac.ru)
+# Date       : 2011-03-25 (Friday)
+# Version    : 1.0
+
+if [ -z "$1" -o ! -f "$1" ]; then
+    echo "  WARNING!!! A file with coordinates of a tetrahedron's peaks is not specified or it doesn't exist.
+                       Exiting..."
+    exit 1
+fi
+
+file=$1
+file_content=$(cat $file)
+
+echo -e "These are the peaks of the tetrahedron found:\n\n${file_content}"
+
+
+# The first point of a tetrahedron
+x1=$(echo "${file_content}" | head -1 | tail -1 | awk '{print $1}')
+y1=$(echo "${file_content}" | head -1 | tail -1 | awk '{print $2}')
+z1=$(echo "${file_content}" | head -1 | tail -1 | awk '{print $3}')
+
+# The second point of a tetrahedron
+x2=$(echo "${file_content}" | head -2 | tail -1 | awk '{print $1}')
+y2=$(echo "${file_content}" | head -2 | tail -1 | awk '{print $2}')
+z2=$(echo "${file_content}" | head -2 | tail -1 | awk '{print $3}')
+
+# The third point of a tetrahedron
+x3=$(echo "${file_content}" | head -3 | tail -1 | awk '{print $1}')
+y3=$(echo "${file_content}" | head -3 | tail -1 | awk '{print $2}')
+z3=$(echo "${file_content}" | head -3 | tail -1 | awk '{print $3}')
+
+# The fourth point of a tetrahedron
+x4=$(echo "${file_content}" | head -4 | tail -1 | awk '{print $1}')
+y4=$(echo "${file_content}" | head -4 | tail -1 | awk '{print $2}')
+z4=$(echo "${file_content}" | head -4 | tail -1 | awk '{print $3}')
+
+
+det1=$(echo "scale=8; ( $x2*$y3*$z4 - $x2*$z3*$y4 - $x3*$y2*$z4 + $x3*$z2*$y4 + $x4*$y2*$z3 - $x4*$z2*$y3)" | bc)
+
+det2=$(echo "scale=8; (-$x1*$y3*$z4 + $x1*$z3*$y4 + $x3*$y1*$z4 - $x3*$z1*$y4 - $x4*$y1*$z3 + $x4*$z1*$y3)" | bc)
+
+det3=$(echo "scale=8; ( $x1*$y2*$z4 - $x1*$z2*$y4 - $x2*$y1*$z4 + $x2*$z1*$y4 + $x4*$y1*$z2 - $x4*$z1*$y2)" | bc)
+
+det4=$(echo "scale=8; (-$x1*$y2*$z3 + $x1*$z2*$y3 + $x2*$y1*$z3 - $x2*$z1*$y3 - $x3*$y1*$z2 + $x3*$z1*$y2)" | bc)
+
+det_sum=$(echo "scale=8; -1/6*($det1 + $det2 + $det3 + $det4)" | bc)
+
+echo -e "\nDeterminant is: $(echo ${det_sum} | sed 's/-//g')"
+
+exit 0
+

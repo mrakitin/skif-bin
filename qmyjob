@@ -1,0 +1,15 @@
+#!/bin/bash
+
+echo "\
+#!/bin/bash
+
+#init_lapw -red 0 -vxc 13 -ecut -7.0 -rkmax 3.5 -numk 24 -b -sp -nosgroup >/dev/null
+
+#runsp_lapw -p -it0 -ec 0.0001 -cc 0.001 -i 300
+
+#min -I -noex -j \"runsp_lapw -p -it0 -ec 0.0001 -cc 0.001 -fc 1.0 -i 300\"
+" > $(basename $PWD).job
+
+chmod 755 $(basename $PWD).job
+
+exit 0 

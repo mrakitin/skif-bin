@@ -1,0 +1,7 @@
+#!/bin/bash
+
+grepline :ENE "$(basename $PWD)_vol__-2.0.scf $(basename $PWD)_vol__-1.0.scf $(basename $PWD)_vol___0.0.scf $(basename $PWD)_vol___1.0.scf $(basename $PWD)_vol___2.0.scf" 1 >  $(basename $PWD).analysis
+grepline :VOL "$(basename $PWD)_vol__-2.0.scf $(basename $PWD)_vol__-1.0.scf $(basename $PWD)_vol___0.0.scf $(basename $PWD)_vol___1.0.scf $(basename $PWD)_vol___2.0.scf" 1 >> $(basename $PWD).analysis
+
+eplot_png -t vol -p -f $(basename $PWD)
+
